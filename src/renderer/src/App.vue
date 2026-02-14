@@ -105,275 +105,147 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="page">
-    <header class="hero">
-      <div class="title">
+  <div
+    class="min-h-screen overflow-y-auto bg-[radial-gradient(circle_at_20%_20%,#f5efe6,#f2f2f8_35%,#e8eff4_70%)] px-6 pt-9 pb-[60px] text-[#1b1b1b] [font-family:'IBM_Plex_Sans','Avenir_Next',sans-serif]"
+  >
+    <header class="mx-auto mb-6 max-w-[900px]">
+      <div class="text-3xl font-bold tracking-[0.5px]">
         Yanluo ASR
       </div>
-      <div class="subtitle">
+      <div class="mt-1.5 text-[#4a4a4a]">
         Offline speech-to-text (file first), with online polishing later.
       </div>
     </header>
 
-    <section class="card">
-      <div class="row">
-        <label class="label">Model</label>
-        <div class="path">
+    <section class="mx-auto mb-[18px] max-w-[900px] rounded-2xl border border-black/10 bg-white/85 p-5 shadow-[0_12px_30px_rgba(20,20,40,0.08)]">
+      <div class="mb-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col">
+        <label class="w-40 font-semibold text-[#2f2f2f] max-[720px]:w-auto">Model</label>
+        <div class="flex-1 rounded-lg bg-[#f7f7fb] px-2.5 py-2 text-xs text-[#3e3e3e] [font-family:'JetBrains_Mono',monospace]">
           {{ modelInfo?.modelId || '-' }}
         </div>
       </div>
-      <div class="row">
-        <label class="label">Local path</label>
-        <div class="path">
+      <div class="mb-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col">
+        <label class="w-40 font-semibold text-[#2f2f2f] max-[720px]:w-auto">Local path</label>
+        <div class="flex-1 rounded-lg bg-[#f7f7fb] px-2.5 py-2 text-xs text-[#3e3e3e] [font-family:'JetBrains_Mono',monospace]">
           {{ modelInfo?.modelDir || '-' }}
         </div>
       </div>
-      <div class="row">
-        <label class="label">Status</label>
-        <div class="path">
+      <div class="mb-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col">
+        <label class="w-40 font-semibold text-[#2f2f2f] max-[720px]:w-auto">Status</label>
+        <div class="flex-1 rounded-lg bg-[#f7f7fb] px-2.5 py-2 text-xs text-[#3e3e3e] [font-family:'JetBrains_Mono',monospace]">
           {{ modelInfo?.exists ? 'Ready' : 'Not downloaded' }}
         </div>
       </div>
-      <div class="row actions">
-        <button class="btn" @click="startDownload">
+      <div class="mb-3 flex items-center justify-start gap-3 max-[720px]:items-stretch max-[720px]:flex-col">
+        <button
+          class="cursor-pointer rounded-full border border-[#1b4dff] bg-[#1b4dff] px-[18px] py-2 font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+          @click="startDownload"
+        >
           Download (ModelScope)
         </button>
-        <button class="btn ghost" @click="refreshModelInfo">
+        <button
+          class="cursor-pointer rounded-full border border-[#1b4dff] bg-transparent px-[18px] py-2 font-semibold text-[#1b4dff] transition disabled:cursor-not-allowed disabled:opacity-50"
+          @click="refreshModelInfo"
+        >
           Refresh
         </button>
       </div>
-      <textarea class="log" readonly :value="downloadLogs" placeholder="Download logs" />
+      <textarea
+        class="min-h-[120px] w-full rounded-xl border border-[#d5d5db] bg-[#f9f9fc] p-2.5 text-[11px] text-[#2f2f2f] [font-family:'JetBrains_Mono',monospace]"
+        readonly
+        :value="downloadLogs"
+        placeholder="Download logs"
+      />
     </section>
 
-    <section class="card">
-      <div class="row">
-        <label class="label">Audio file</label>
-        <button class="btn" @click="pickAudioFile">
+    <section class="mx-auto mb-[18px] max-w-[900px] rounded-2xl border border-black/10 bg-white/85 p-5 shadow-[0_12px_30px_rgba(20,20,40,0.08)]">
+      <div class="mb-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col">
+        <label class="w-40 font-semibold text-[#2f2f2f] max-[720px]:w-auto">Audio file</label>
+        <button
+          class="cursor-pointer rounded-full border border-[#1b4dff] bg-[#1b4dff] px-[18px] py-2 font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+          @click="pickAudioFile"
+        >
           Choose Audio File
         </button>
       </div>
-      <div class="row">
-        <label class="label">Path</label>
-        <input v-model="filePath" class="input" placeholder="/absolute/path/to/audio.wav">
+      <div class="mb-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col">
+        <label class="w-40 font-semibold text-[#2f2f2f] max-[720px]:w-auto">Path</label>
+        <input
+          v-model="filePath"
+          class="flex-1 rounded-lg border border-[#d3d3d9] bg-white px-2.5 py-2"
+          placeholder="/absolute/path/to/audio.wav"
+        >
       </div>
-      <div class="row">
-        <label class="label">Language (optional)</label>
+      <div class="mb-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col">
+        <label class="w-40 font-semibold text-[#2f2f2f] max-[720px]:w-auto">Language (optional)</label>
         <input
           v-model="language"
-          class="input"
+          class="flex-1 rounded-lg border border-[#d3d3d9] bg-white px-2.5 py-2"
           placeholder="Chinese / English / French ..."
         >
       </div>
-      <div class="row actions">
-        <button class="btn" :disabled="!filePath" @click="transcribe">
+      <div class="mb-3 flex items-center justify-start gap-3 max-[720px]:items-stretch max-[720px]:flex-col">
+        <button
+          class="cursor-pointer rounded-full border border-[#1b4dff] bg-[#1b4dff] px-[18px] py-2 font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+          :disabled="!filePath"
+          @click="transcribe"
+        >
           Transcribe
         </button>
-        <button class="btn ghost" @click="checkHealth">
+        <button
+          class="cursor-pointer rounded-full border border-[#1b4dff] bg-transparent px-[18px] py-2 font-semibold text-[#1b4dff] transition disabled:cursor-not-allowed disabled:opacity-50"
+          @click="checkHealth"
+        >
           Health Check
         </button>
       </div>
-      <div class="status">
+      <div class="mt-1.5 min-h-[18px] text-[#555]">
         {{ status }}
       </div>
-      <div class="status">
+      <div class="mt-1.5 min-h-[18px] text-[#555]">
         Chars: {{ transcriptChars }}
       </div>
-      <div class="status">
+      <div class="mt-1.5 min-h-[18px] text-[#555]">
         Elapsed: {{ transcriptElapsedMs }} ms ({{ (transcriptElapsedMs / 1000).toFixed(2) }} s)
       </div>
     </section>
 
-    <section ref="resultCardRef" class="card result-card">
-      <div class="result-title">
+    <section
+      ref="resultCardRef"
+      class="mx-auto mb-[18px] max-w-[900px] rounded-2xl border border-[#1b4dff]/25 bg-white/85 p-5 shadow-[0_12px_30px_rgba(20,20,40,0.08)]"
+    >
+      <div class="mb-3 text-base font-bold text-[#1637b8]">
         Recognition Result
       </div>
-      <div class="row">
-        <label class="label">Detected language</label>
-        <div class="path">
+      <div class="mb-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col">
+        <label class="w-40 font-semibold text-[#2f2f2f] max-[720px]:w-auto">Detected language</label>
+        <div class="flex-1 rounded-lg bg-[#f7f7fb] px-2.5 py-2 text-xs text-[#3e3e3e] [font-family:'JetBrains_Mono',monospace]">
           {{ resultLanguage || '-' }}
         </div>
       </div>
-      <div class="row">
-        <label class="label">Transcript (Preview)</label>
+      <div class="mb-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col">
+        <label class="w-40 font-semibold text-[#2f2f2f] max-[720px]:w-auto">Transcript (Preview)</label>
       </div>
-      <div class="result-box">
+      <div class="min-h-24 w-full break-words rounded-xl border border-[#d5d5db] bg-white p-3 text-[13px] leading-6 whitespace-pre-wrap text-[#111] [font-family:'IBM_Plex_Mono',monospace]">
         {{ resultText || 'No transcript yet' }}
       </div>
-      <div class="row">
-        <label class="label">Transcript (Editable)</label>
+      <div class="mb-3 mt-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col">
+        <label class="w-40 font-semibold text-[#2f2f2f] max-[720px]:w-auto">Transcript (Editable)</label>
       </div>
-      <textarea v-model="resultText" class="output" placeholder="Transcript will appear here" />
-      <div class="row">
-        <label class="label">Raw Response</label>
+      <textarea
+        v-model="resultText"
+        class="min-h-[220px] w-full rounded-xl border border-[#d5d5db] bg-white p-3 text-[13px] text-[#111] [font-family:'IBM_Plex_Mono',monospace]"
+        placeholder="Transcript will appear here"
+      />
+      <div class="mb-3 mt-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col">
+        <label class="w-40 font-semibold text-[#2f2f2f] max-[720px]:w-auto">Raw Response</label>
       </div>
-      <textarea class="log" readonly :value="lastResponseJson" placeholder="Raw ASR JSON response" />
+      <textarea
+        class="min-h-[120px] w-full rounded-xl border border-[#d5d5db] bg-[#f9f9fc] p-2.5 text-[11px] text-[#2f2f2f] [font-family:'JetBrains_Mono',monospace]"
+        readonly
+        :value="lastResponseJson"
+        placeholder="Raw ASR JSON response"
+      />
     </section>
   </div>
 </template>
-
-<style scoped>
-:root {
-  color-scheme: light;
-}
-
-.page {
-  min-height: 100vh;
-  padding: 36px 24px 60px;
-  overflow-y: auto;
-  background: radial-gradient(circle at 20% 20%, #f5efe6, #f2f2f8 35%, #e8eff4 70%);
-  font-family: "IBM Plex Sans", "Avenir Next", sans-serif;
-  color: #1b1b1b;
-}
-
-.hero {
-  max-width: 900px;
-  margin: 0 auto 24px;
-}
-
-.title {
-  font-size: 32px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-}
-
-.subtitle {
-  margin-top: 6px;
-  color: #4a4a4a;
-}
-
-.card {
-  max-width: 900px;
-  margin: 0 auto 18px;
-  padding: 20px;
-  background: rgba(255, 255, 255, 0.85);
-  border-radius: 16px;
-  box-shadow: 0 12px 30px rgba(20, 20, 40, 0.08);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.result-card {
-  border: 1px solid rgba(27, 77, 255, 0.25);
-}
-
-.result-title {
-  margin-bottom: 12px;
-  font-size: 16px;
-  font-weight: 700;
-  color: #1637b8;
-}
-
-.row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.label {
-  width: 160px;
-  font-weight: 600;
-  color: #2f2f2f;
-}
-
-.file {
-  flex: 1;
-}
-
-.path {
-  flex: 1;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 12px;
-  color: #3e3e3e;
-  padding: 8px 10px;
-  background: #f7f7fb;
-  border-radius: 8px;
-}
-
-.input {
-  flex: 1;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid #d3d3d9;
-}
-
-.actions {
-  justify-content: flex-start;
-}
-
-.btn {
-  padding: 8px 18px;
-  border-radius: 999px;
-  border: none;
-  background: #1b4dff;
-  color: white;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.btn.ghost {
-  background: transparent;
-  color: #1b4dff;
-  border: 1px solid #1b4dff;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.status {
-  margin-top: 6px;
-  color: #555;
-  min-height: 18px;
-}
-
-.output {
-  width: 100%;
-  min-height: 220px;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid #d5d5db;
-  background: #fff;
-  color: #111;
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 13px;
-}
-
-.result-box {
-  width: 100%;
-  min-height: 96px;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid #d5d5db;
-  background: #fff;
-  color: #111;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.log {
-  width: 100%;
-  min-height: 120px;
-  padding: 10px;
-  border-radius: 12px;
-  border: 1px solid #d5d5db;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 11px;
-  background: #f9f9fc;
-  color: #2f2f2f;
-}
-
-@media (max-width: 720px) {
-  .row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .label {
-    width: auto;
-  }
-}
-</style>
