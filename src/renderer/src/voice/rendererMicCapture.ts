@@ -43,8 +43,6 @@ class RendererMicCaptureManager {
         audio: {
           channelCount: 1,
           echoCancellation: false,
-          noiseSuppression: true,
-          autoGainControl: true,
         },
         video: false,
       })
@@ -80,6 +78,7 @@ class RendererMicCaptureManager {
         const now = Date.now()
         if (now - this.lastRmsReportAt >= 1000) {
           this.lastRmsReportAt = now
+          const track = this.stream?.getAudioTracks()[0]
           window.api.voice.sendAudioState({
             state: 'running',
             timestampMs: now,
@@ -88,6 +87,11 @@ class RendererMicCaptureManager {
             nonZeroRatio: Number(nonZeroRatio.toFixed(6)),
             audioContextState: this.audioContext?.state,
             inputDeviceLabel: this.stream?.getAudioTracks()[0]?.label ?? '',
+            phase: JSON.stringify({
+              enabled: track?.enabled,
+              muted: track?.muted,
+              readyState: track?.readyState,
+            }),
           })
         }
       }
@@ -103,6 +107,7 @@ class RendererMicCaptureManager {
         timestampMs: Date.now(),
         audioContextState: this.audioContext.state,
         inputDeviceLabel: this.stream?.getAudioTracks()[0]?.label ?? '',
+        phase: JSON.stringify(this.stream?.getAudioTracks()[0]?.getSettings() ?? {}),
       })
     }
     catch (error) {

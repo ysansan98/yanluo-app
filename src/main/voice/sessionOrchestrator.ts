@@ -218,6 +218,17 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     })
 
     this.deps.asrClient.onError((err) => {
+      const isMetaTensorError
+        = err.message.toLowerCase().includes('meta tensor')
+          || err.message.toLowerCase().includes('cannot copy out of meta tensor')
+      if (isMetaTensorError && (this.state === 'STREAMING' || this.state === 'FINALIZING')) {
+        this.log('ignore recoverable ASR meta tensor error in active session', {
+          state: this.state,
+          code: err.code,
+          message: err.message,
+        })
+        return
+      }
       if (this.state === 'FINALIZING') {
         this.log('ignore ASR error during finalizing and wait for fallback path', {
           code: err.code,
