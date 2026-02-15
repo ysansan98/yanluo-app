@@ -181,6 +181,7 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
       this.log('partial received', {
         sessionId: msg.sessionId,
         textLength: msg.text.length,
+        text: msg.text,
       })
     })
 
@@ -202,6 +203,7 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     this.log('final received', {
       sessionId: msg.sessionId,
       textLength: msg.text.length,
+      text: msg.text,
     })
     if (this.waitFinalResolver) {
       this.waitFinalResolver(msg)
