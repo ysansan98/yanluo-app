@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import process from 'node:process'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, session, shell, systemPreferences } from 'electron'
 import icon from '../../resources/icon.png?asset'
 import { AsrService } from './asrService'
 import { getModelDir, getModelId, ModelDownloader, modelExists } from './modelManager'
@@ -22,6 +22,40 @@ const audioCapture = new RendererAudioCapture({
 })
 let mainWindow: BrowserWindow | null = null
 let captureChunkCount = 0
+
+async function ensureMicrophoneAccess(): Promise<boolean> {
+  if (process.platform !== 'darwin')
+    return true
+
+  const status = systemPreferences.getMediaAccessStatus('microphone')
+  console.info('[voice-audio] microphone access status', { status })
+
+  if (status === 'granted')
+    return true
+
+  const granted = await systemPreferences.askForMediaAccess('microphone')
+  console.info('[voice-audio] askForMediaAccess result', { granted })
+  return granted
+}
+
+function setupMediaPermissionHandlers(): void {
+  session.defaultSession.setPermissionCheckHandler((_wc, permission, _origin, details) => {
+    if (permission === 'media') {
+      const mediaType = (details as { mediaType?: string } | undefined)?.mediaType
+      return mediaType === 'audio' || mediaType === undefined
+    }
+    return false
+  })
+
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback, details) => {
+    if (permission === 'media') {
+      const mediaTypes = (details as { mediaTypes?: string[] } | undefined)?.mediaTypes ?? []
+      callback(mediaTypes.length === 0 || mediaTypes.includes('audio'))
+      return
+    }
+    callback(false)
+  })
+}
 
 function createWindow(): void {
   // Create the browser window.
@@ -62,6 +96,7 @@ function createWindow(): void {
 app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
+  setupMediaPermissionHandlers()
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -133,9 +168,17 @@ app.whenReady().then(() => {
   hotkeyManager.onPress(() => {
     console.info('[voice-hotkey] command+0 pressed')
     captureChunkCount = 0
-    audioCapture.start().catch((err) => {
-      console.error('[voice-audio] failed to start capture', err)
-    })
+    ensureMicrophoneAccess()
+      .then((granted) => {
+        if (!granted) {
+          console.error('[voice-audio] microphone permission denied by system')
+          return
+        }
+        return audioCapture.start()
+      })
+      .catch((err) => {
+        console.error('[voice-audio] failed to start capture', err)
+      })
   })
   hotkeyManager.onRelease(() => {
     console.info('[voice-hotkey] command+0 released')

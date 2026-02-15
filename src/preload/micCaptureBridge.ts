@@ -16,6 +16,7 @@ class MicCaptureBridge {
   private running = false
 
   bind(): void {
+    ipcRenderer.send(IPC_AUDIO_STATE, { state: 'stopped', timestampMs: Date.now(), phase: 'bridge-bound' })
     ipcRenderer.on(IPC_AUDIO_START, () => {
       void this.start()
     })
@@ -29,6 +30,10 @@ class MicCaptureBridge {
       return
 
     try {
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        throw new Error('navigator.mediaDevices.getUserMedia is unavailable in preload context')
+      }
+
       this.stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
