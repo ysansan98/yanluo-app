@@ -26,8 +26,13 @@ DEVICE = os.getenv('ASR_DEVICE')  # e.g. "cuda:0", "mps", "cpu"
 DTYPE = os.getenv('ASR_DTYPE')  # e.g. "bfloat16", "float16", "float32"
 
 STREAM_SAMPLE_RATE = 16000
-STREAM_PARTIAL_MIN_SAMPLES = int(os.getenv('ASR_STREAM_PARTIAL_MIN_SAMPLES', '16000'))
-STREAM_PARTIAL_MIN_INTERVAL_MS = int(os.getenv('ASR_STREAM_PARTIAL_MIN_INTERVAL_MS', '900'))
+STREAM_PARTIAL_MIN_SAMPLES = int(os.getenv('ASR_STREAM_PARTIAL_MIN_SAMPLES', '24000'))
+STREAM_PARTIAL_MIN_INTERVAL_MS = int(os.getenv('ASR_STREAM_PARTIAL_MIN_INTERVAL_MS', '1200'))
+STREAM_VAD_MIN_RMS = float(os.getenv('ASR_STREAM_VAD_MIN_RMS', '0.008'))
+STREAM_VAD_MIN_ACTIVE_RATIO = float(os.getenv('ASR_STREAM_VAD_MIN_ACTIVE_RATIO', '0.015'))
+STREAM_VAD_ACTIVE_ABS_THRESHOLD = float(os.getenv('ASR_STREAM_VAD_ACTIVE_ABS_THRESHOLD', '0.02'))
+STREAM_VAD_MIN_AUDIO_MS = int(os.getenv('ASR_STREAM_VAD_MIN_AUDIO_MS', '300'))
+STREAM_VAD_DEBUG = os.getenv('ASR_STREAM_VAD_DEBUG', '1') == '1'
 
 
 class TranscribeFileRequest(BaseModel):
@@ -200,6 +205,55 @@ def _decode_audio_payload(payload: str) -> bytes:
     return base64.b64decode(payload)
 
 
+def _pcm16le_to_float32(pcm16le: bytes) -> np.ndarray:
+    if not pcm16le:
+        return np.zeros((0,), dtype=np.float32)
+    x = np.frombuffer(pcm16le, dtype=np.int16).astype(np.float32)
+    return x / 32768.0
+
+
+def _audio_activity_stats(samples: np.ndarray) -> tuple[float, float]:
+    if samples.size == 0:
+        return 0.0, 0.0
+    rms = float(np.sqrt(np.mean(np.square(samples), dtype=np.float64)))
+    active_ratio = float(np.mean(np.abs(samples) >= STREAM_VAD_ACTIVE_ABS_THRESHOLD))
+    return rms, active_ratio
+
+
+def _analyze_audio_for_vad(pcm16le: bytes) -> tuple[bool, dict]:
+    samples = _pcm16le_to_float32(pcm16le)
+    if samples.size == 0:
+        return False, {
+            'duration_ms': 0,
+            'rms': 0.0,
+            'active_ratio': 0.0,
+            'reason': 'empty',
+        }
+
+    duration_ms = int(samples.size * 1000 / STREAM_SAMPLE_RATE)
+    rms, active_ratio = _audio_activity_stats(samples)
+    if duration_ms < STREAM_VAD_MIN_AUDIO_MS:
+        return False, {
+            'duration_ms': duration_ms,
+            'rms': round(rms, 6),
+            'active_ratio': round(active_ratio, 6),
+            'reason': 'too_short',
+        }
+    if rms < STREAM_VAD_MIN_RMS and active_ratio < STREAM_VAD_MIN_ACTIVE_RATIO:
+        return False, {
+            'duration_ms': duration_ms,
+            'rms': round(rms, 6),
+            'active_ratio': round(active_ratio, 6),
+            'reason': 'low_energy',
+        }
+    return True, {
+        'duration_ms': duration_ms,
+        'rms': round(rms, 6),
+        'active_ratio': round(active_ratio, 6),
+        'reason': 'ok',
+    }
+
+
 @app.get('/health')
 def health():
     _load_model()
@@ -320,11 +374,22 @@ async def stream_asr(websocket: WebSocket):
                 if not should_emit_partial or session.transcribing:
                     continue
 
+                snapshot = bytes(session.pcm16le)
+                should_run, stats = _analyze_audio_for_vad(snapshot)
+                if not should_run:
+                    if STREAM_VAD_DEBUG:
+                        print(
+                            f'[asr-stream-vad] skip partial session={session_id} '
+                            f'duration_ms={stats["duration_ms"]} rms={stats["rms"]} '
+                            f'active_ratio={stats["active_ratio"]} reason={stats["reason"]}'
+                        )
+                    continue
+
                 try:
                     session.transcribing = True
                     partial = await asyncio.to_thread(
                         _transcribe_pcm16le_bytes,
-                        bytes(session.pcm16le),
+                        snapshot,
                         session.language,
                     )
                 except Exception as exc:
@@ -365,11 +430,39 @@ async def stream_asr(websocket: WebSocket):
                     )
                     continue
 
+                snapshot = bytes(session.pcm16le)
+                should_run, stats = _analyze_audio_for_vad(snapshot)
+                if not should_run:
+                    if STREAM_VAD_DEBUG:
+                        print(
+                            f'[asr-stream-vad] skip final session={session_id} '
+                            f'duration_ms={stats["duration_ms"]} rms={stats["rms"]} '
+                            f'active_ratio={stats["active_ratio"]} reason={stats["reason"]}'
+                        )
+                    await websocket.send_json(
+                        {
+                            'type': 'final',
+                            'sessionId': session_id,
+                            'text': '',
+                            'isFinal': True,
+                            'language': session.language or '',
+                            'elapsedMs': 0,
+                        }
+                    )
+                    continue
+
+                if STREAM_VAD_DEBUG:
+                    print(
+                        f'[asr-stream-vad] final run session={session_id} '
+                        f'duration_ms={stats["duration_ms"]} rms={stats["rms"]} '
+                        f'active_ratio={stats["active_ratio"]}'
+                    )
+
                 started_at = time.perf_counter()
                 try:
                     final = await asyncio.to_thread(
                         _transcribe_pcm16le_bytes,
-                        bytes(session.pcm16le),
+                        snapshot,
                         session.language,
                     )
                 except Exception as exc:
