@@ -1,6 +1,7 @@
 import process from 'node:process'
 import { electronAPI } from '@electron-toolkit/preload'
 import { contextBridge, ipcRenderer } from 'electron'
+import { bindMicCaptureBridge } from './micCaptureBridge'
 import { createVoiceBridge } from './voiceBridge'
 
 // Custom APIs for renderer
@@ -27,6 +28,7 @@ const api = {
 // just add to the DOM global.
 if (process.contextIsolated) {
   try {
+    bindMicCaptureBridge()
     contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('api', api)
   }
@@ -35,6 +37,7 @@ if (process.contextIsolated) {
   }
 }
 else {
+  bindMicCaptureBridge()
   // @ts-expect-error (define in dts)
   window.electron = electronAPI
   // @ts-expect-error (define in dts)

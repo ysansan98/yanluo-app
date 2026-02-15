@@ -5,7 +5,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import icon from '../../resources/icon.png?asset'
 import { AsrService } from './asrService'
 import { getModelDir, getModelId, ModelDownloader, modelExists } from './modelManager'
-import { CommandAudioCapture, MacGlobalHotkeyManager } from './voice'
+import { MacGlobalHotkeyManager, RendererAudioCapture } from './voice'
 
 const asrService = new AsrService()
 const modelDownloader = new ModelDownloader()
@@ -14,7 +14,8 @@ const hotkeyManager = new MacGlobalHotkeyManager({
     console.info(`[voice-hotkey] ${message}`, extra ?? {})
   },
 })
-const audioCapture = new CommandAudioCapture({
+const audioCapture = new RendererAudioCapture({
+  getTargetWebContents: () => mainWindow?.webContents ?? null,
   log: (message, extra) => {
     console.info(`[voice-audio] ${message}`, extra ?? {})
   },
