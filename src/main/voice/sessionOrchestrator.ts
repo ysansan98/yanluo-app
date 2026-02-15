@@ -123,15 +123,42 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
       await this.deps.asrClient.end(session.sessionId)
 
       const final = await this.waitForFinal(VOICE_TIMEOUT.FINAL_MS)
-      if (!final || !final.text.trim()) {
-        throw this.makeError('E_EMPTY_RESULT', 'Empty final transcript')
+      let resolvedText = ''
+      if (!final) {
+        if (session.partialText.trim()) {
+          resolvedText = session.partialText
+          this.log('final timeout, fallback to latest partial', {
+            sessionId: session.sessionId,
+            textLength: resolvedText.length,
+            text: resolvedText,
+          })
+        }
+        else {
+          throw this.makeError('E_ASR_TIMEOUT', `Final transcript timeout after ${VOICE_TIMEOUT.FINAL_MS}ms`)
+        }
+      }
+      else if (!final.text.trim()) {
+        if (session.partialText.trim()) {
+          resolvedText = session.partialText
+          this.log('empty final, fallback to latest partial', {
+            sessionId: session.sessionId,
+            textLength: resolvedText.length,
+            text: resolvedText,
+          })
+        }
+        else {
+          throw this.makeError('E_EMPTY_RESULT', 'Empty final transcript')
+        }
+      }
+      else {
+        resolvedText = final.text
       }
 
-      session.finalText = final.text
+      session.finalText = resolvedText
       session.metrics.finalAt = Date.now()
 
       this.transition('INJECTING', { sessionId: session.sessionId })
-      const injectResult = await this.deps.textInjector.inject(final.text)
+      const injectResult = await this.deps.textInjector.inject(resolvedText)
       session.metrics.injectedAt = Date.now()
 
       if (!injectResult.ok) {

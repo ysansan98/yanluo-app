@@ -155,7 +155,7 @@ export interface SessionOrchestrator {
 
 export const VOICE_TIMEOUT = {
   ARMING_MS: 1500,
-  FINAL_MS: 2000,
+  FINAL_MS: 12000,
   ASR_IDLE_MS: 3000,
   UI_AUTO_HIDE_MS: 1000,
 } as const
