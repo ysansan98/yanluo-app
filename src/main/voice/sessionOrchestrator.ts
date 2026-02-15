@@ -88,7 +88,7 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
       await this.deps.asrClient.start({
         sessionId,
         sampleRate: 16000,
-        language: 'zh-CN',
+        language: 'Chinese',
       })
       await this.deps.audioCapture.start()
 
