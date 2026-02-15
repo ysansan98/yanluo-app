@@ -24,7 +24,8 @@
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
-    "electron-updater": "^6.3.9"
+    "electron-updater": "^6.3.9",
+    "node-global-key-listener": "^0.3.0"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^7.4.3",

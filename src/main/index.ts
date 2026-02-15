@@ -5,9 +5,15 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import icon from '../../resources/icon.png?asset'
 import { AsrService } from './asrService'
 import { getModelDir, getModelId, ModelDownloader, modelExists } from './modelManager'
+import { MacGlobalHotkeyManager } from './voice'
 
 const asrService = new AsrService()
 const modelDownloader = new ModelDownloader()
+const hotkeyManager = new MacGlobalHotkeyManager({
+  log: (message, extra) => {
+    console.info(`[voice-hotkey] ${message}`, extra ?? {})
+  },
+})
 let mainWindow: BrowserWindow | null = null
 
 function createWindow(): void {
@@ -55,6 +61,10 @@ app.whenReady().then(() => {
   // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
+
+    window.on('blur', () => {
+      hotkeyManager.reset('window-blur')
+    })
   })
 
   // IPC test
@@ -103,6 +113,18 @@ app.whenReady().then(() => {
   asrService.start().catch((err) => {
     console.error('Failed to start ASR service:', err)
   })
+  hotkeyManager.onPress(() => {
+    console.info('[voice-hotkey] command+0 pressed')
+  })
+  hotkeyManager.onRelease(() => {
+    console.info('[voice-hotkey] command+0 released')
+  })
+  hotkeyManager.onError((err) => {
+    console.error('[voice-hotkey] unavailable', err)
+  })
+  hotkeyManager.start().catch((err) => {
+    console.error('Failed to start global hotkey manager:', err)
+  })
 
   createWindow()
 
@@ -111,6 +133,10 @@ app.whenReady().then(() => {
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0)
       createWindow()
+  })
+
+  app.on('browser-window-blur', () => {
+    hotkeyManager.reset('app-will-resign-active')
   })
 })
 
@@ -125,6 +151,9 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   asrService.stop()
+  hotkeyManager.stop().catch((err) => {
+    console.error('Failed to stop global hotkey manager:', err)
+  })
 })
 
 // In this file you can include the rest of your app's specific main process

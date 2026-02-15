@@ -109,8 +109,10 @@ export interface HotkeyManager {
   // Register system-level hotkey listeners.
   start: () => Promise<void>
   stop: () => Promise<void>
+  reset: (reason?: string) => void
   onPress: (cb: () => void) => void
   onRelease: (cb: () => void) => void
+  onError: (cb: (err: VoiceError) => void) => void
 }
 
 export interface AudioCapture {
