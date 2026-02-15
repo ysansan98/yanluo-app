@@ -13,6 +13,25 @@ export interface VoiceBridgeApi {
   onFinal: (cb: (payload: VoiceUiFinalPayload) => void) => () => void
   onHide: (cb: () => void) => () => void
   onToast: (cb: (payload: VoiceUiToastPayload) => void) => () => void
+  onAudioStart: (cb: () => void) => () => void
+  onAudioStop: (cb: () => void) => () => void
+  sendAudioChunk: (payload: {
+    pcm16leBase64: string
+    sampleRate: number
+    channels: number
+    timestampMs: number
+  }) => void
+  sendAudioState: (payload: {
+    state: 'started' | 'stopped' | 'running'
+    timestampMs: number
+    phase?: string
+    rms?: number
+    maxAbs?: number
+    nonZeroRatio?: number
+    audioContextState?: string
+    inputDeviceLabel?: string
+  }) => void
+  sendAudioError: (payload: { message: string }) => void
 }
 
 function bindEvent<T>(channel: string, handler: (payload: T) => void): () => void {
@@ -32,5 +51,18 @@ export function createVoiceBridge(): VoiceBridgeApi {
       return () => ipcRenderer.removeListener(VOICE_IPC.UI_HIDE, listener)
     },
     onToast: cb => bindEvent(VOICE_IPC.UI_TOAST, cb),
+    onAudioStart: (cb) => {
+      const listener = () => cb()
+      ipcRenderer.on('voice:audio:start', listener)
+      return () => ipcRenderer.removeListener('voice:audio:start', listener)
+    },
+    onAudioStop: (cb) => {
+      const listener = () => cb()
+      ipcRenderer.on('voice:audio:stop', listener)
+      return () => ipcRenderer.removeListener('voice:audio:stop', listener)
+    },
+    sendAudioChunk: payload => ipcRenderer.send('voice:audio:chunk', payload),
+    sendAudioState: payload => ipcRenderer.send('voice:audio:state', payload),
+    sendAudioError: payload => ipcRenderer.send('voice:audio:error', payload),
   }
 }

@@ -27,4 +27,23 @@ export interface VoiceApi {
   onFinal: (cb: (payload: VoiceUiFinalPayload) => void) => () => void
   onHide: (cb: () => void) => () => void
   onToast: (cb: (payload: VoiceUiToastPayload) => void) => () => void
+  onAudioStart: (cb: () => void) => () => void
+  onAudioStop: (cb: () => void) => () => void
+  sendAudioChunk: (payload: {
+    pcm16leBase64: string
+    sampleRate: number
+    channels: number
+    timestampMs: number
+  }) => void
+  sendAudioState: (payload: {
+    state: 'started' | 'stopped' | 'running'
+    timestampMs: number
+    phase?: string
+    rms?: number
+    maxAbs?: number
+    nonZeroRatio?: number
+    audioContextState?: string
+    inputDeviceLabel?: string
+  }) => void
+  sendAudioError: (payload: { message: string }) => void
 }

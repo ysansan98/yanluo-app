@@ -29,6 +29,8 @@ export class WsStreamingAsrClient implements StreamingAsrClient {
   private partialHandler: ((msg: AsrPartialResponse) => void) | null = null
   private finalHandler: ((msg: AsrFinalResponse) => void) | null = null
   private errorHandler: ((err: VoiceError) => void) | null = null
+  private activeSessionId: string | null = null
+  private acceptingAudio = false
 
   private readonly wsUrl: string
   private readonly log: (message: string, extra?: Record<string, unknown>) => void
@@ -69,6 +71,8 @@ export class WsStreamingAsrClient implements StreamingAsrClient {
 
       ws.addEventListener('close', (event) => {
         this.log('disconnected', { code: event.code, reason: event.reason })
+        this.acceptingAudio = false
+        this.activeSessionId = null
         this.ws = null
         this.connecting = null
       })
@@ -91,6 +95,8 @@ export class WsStreamingAsrClient implements StreamingAsrClient {
 
   async start(req: AsrStartRequest): Promise<void> {
     await this.ensureConnected()
+    this.activeSessionId = req.sessionId
+    this.acceptingAudio = true
     this.sendJson({
       type: 'start',
       sessionId: req.sessionId,
@@ -101,19 +107,26 @@ export class WsStreamingAsrClient implements StreamingAsrClient {
 
   async sendAudio(chunk: Buffer): Promise<void> {
     await this.ensureConnected()
+    if (!this.acceptingAudio || !this.activeSessionId)
+      return
     this.sendJson({
       type: 'audio',
-      sessionId: this.lastSessionId,
+      sessionId: this.activeSessionId,
       pcm16leBase64: chunk.toString('base64'),
     })
   }
 
   async end(sessionId: string): Promise<void> {
     await this.ensureConnected()
+    if (!this.acceptingAudio || this.activeSessionId !== sessionId)
+      return
+    this.acceptingAudio = false
     this.sendJson({ type: 'end', sessionId })
   }
 
   async close(): Promise<void> {
+    this.acceptingAudio = false
+    this.activeSessionId = null
     if (!this.ws)
       return
 
@@ -138,8 +151,6 @@ export class WsStreamingAsrClient implements StreamingAsrClient {
     this.errorHandler = cb
   }
 
-  private lastSessionId = ''
-
   private async ensureConnected(): Promise<void> {
     await this.connect()
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
@@ -150,9 +161,6 @@ export class WsStreamingAsrClient implements StreamingAsrClient {
   private sendJson(payload: Record<string, unknown>): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error('ASR websocket is not open')
-    }
-    if (typeof payload.sessionId === 'string') {
-      this.lastSessionId = payload.sessionId
     }
     this.ws.send(JSON.stringify(payload))
   }

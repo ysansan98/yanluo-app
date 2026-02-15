@@ -20,8 +20,14 @@ interface AudioChunkPayload {
 }
 
 interface AudioStatePayload {
-  state: 'started' | 'stopped'
+  state: 'started' | 'stopped' | 'running'
   timestampMs: number
+  phase?: string
+  rms?: number
+  maxAbs?: number
+  nonZeroRatio?: number
+  audioContextState?: string
+  inputDeviceLabel?: string
 }
 
 interface AudioErrorPayload {
