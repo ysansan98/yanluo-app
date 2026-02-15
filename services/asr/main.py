@@ -333,10 +333,22 @@ async def stream_asr(websocket: WebSocket):
                 try:
                     _ensure_model_ready()
                 except Exception as exc:
-                    await websocket.send_json(
-                        _build_stream_error(session_id, 'E_ASR_CONNECT', str(exc))
-                    )
-                    continue
+                    msg = str(exc).lower()
+                    if 'meta tensor' in msg or 'cannot copy out of meta tensor' in msg:
+                        try:
+                            _reload_model_cpu_fallback(str(exc))
+                            if STREAM_VAD_DEBUG:
+                                print(f'[asr-stream] recovered start error session={session_id}: {exc}')
+                        except Exception:
+                            await websocket.send_json(
+                                _build_stream_error(session_id, 'E_ASR_CONNECT', str(exc))
+                            )
+                            continue
+                    else:
+                        await websocket.send_json(
+                            _build_stream_error(session_id, 'E_ASR_CONNECT', str(exc))
+                        )
+                        continue
 
                 sessions[session_id] = StreamingSession(
                     session_id=session_id,
@@ -405,7 +417,8 @@ async def stream_asr(websocket: WebSocket):
                             print(f'[asr-stream] recoverable partial error session={session_id}: {exc}')
                         session.transcribing = False
                         continue
-                    await websocket.send_json(_build_stream_error(session_id, 'E_ASR_TRANSCRIBE', str(exc)))
+                    if STREAM_VAD_DEBUG:
+                        print(f'[asr-stream] skip partial due to error session={session_id}: {exc}')
                     session.transcribing = False
                     continue
                 finally:
@@ -493,7 +506,18 @@ async def stream_asr(websocket: WebSocket):
                             }
                         )
                         continue
-                    await websocket.send_json(_build_stream_error(session_id, 'E_ASR_TRANSCRIBE', str(exc)))
+                    if STREAM_VAD_DEBUG:
+                        print(f'[asr-stream] fallback empty final due to error session={session_id}: {exc}')
+                    await websocket.send_json(
+                        {
+                            'type': 'final',
+                            'sessionId': session_id,
+                            'text': '',
+                            'isFinal': True,
+                            'language': session.language or '',
+                            'elapsedMs': 0,
+                        }
+                    )
                     continue
 
                 elapsed_ms = int((time.perf_counter() - started_at) * 1000)

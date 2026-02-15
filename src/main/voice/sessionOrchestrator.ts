@@ -41,6 +41,7 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
 
   private waitFinalResolver: ((value: AsrFinalResponse | null) => void) | null = null
   private waitFinalTimer: NodeJS.Timeout | null = null
+  private failing = false
 
   constructor(private readonly deps: SessionOrchestratorDeps) {
     this.log = deps.log ?? ((message, extra) => console.info(`[voice-session] ${message}`, extra ?? {}))
@@ -254,6 +255,11 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
   }
 
   private async fail(error: unknown, phase: string): Promise<void> {
+    if (this.failing) {
+      this.log('skip duplicate fail', { phase })
+      return
+    }
+    this.failing = true
     const err = this.normalizeError(error)
     this.transition('FAILED', {
       phase,
@@ -263,6 +269,7 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     })
     await this.cleanupSession(`failed:${phase}`)
     this.transition('IDLE')
+    this.failing = false
   }
 
   private async cleanupSession(reason: string): Promise<void> {
