@@ -151,15 +151,21 @@ def _ensure_model_ready() -> None:
 
 
 def _run_transcribe(audio_path: str, language: Optional[str]):
+    last_exc = None
     with MODEL_INFER_LOCK:
-        try:
-            return MODEL.transcribe(audio=audio_path, language=language)
-        except Exception as transcribe_exc:
-            msg = str(transcribe_exc).lower()
-            if 'meta tensor' in msg or 'cannot copy out of meta tensor' in msg:
-                _reload_model_cpu_fallback(str(transcribe_exc))
+        for _attempt in range(3):
+            try:
                 return MODEL.transcribe(audio=audio_path, language=language)
-            raise
+            except Exception as transcribe_exc:
+                last_exc = transcribe_exc
+                msg = str(transcribe_exc).lower()
+                if 'meta tensor' in msg or 'cannot copy out of meta tensor' in msg:
+                    _reload_model_cpu_fallback(str(transcribe_exc))
+                    continue
+                raise
+    if last_exc is not None:
+        raise last_exc
+    raise RuntimeError('Unknown ASR transcription failure')
 
 
 def _transcribe_pcm16le_bytes(pcm16le: bytes, language: Optional[str]):
@@ -393,6 +399,12 @@ async def stream_asr(websocket: WebSocket):
                         session.language,
                     )
                 except Exception as exc:
+                    msg = str(exc).lower()
+                    if 'meta tensor' in msg or 'cannot copy out of meta tensor' in msg:
+                        if STREAM_VAD_DEBUG:
+                            print(f'[asr-stream] recoverable partial error session={session_id}: {exc}')
+                        session.transcribing = False
+                        continue
                     await websocket.send_json(_build_stream_error(session_id, 'E_ASR_TRANSCRIBE', str(exc)))
                     session.transcribing = False
                     continue
@@ -466,6 +478,21 @@ async def stream_asr(websocket: WebSocket):
                         session.language,
                     )
                 except Exception as exc:
+                    msg = str(exc).lower()
+                    if 'meta tensor' in msg or 'cannot copy out of meta tensor' in msg:
+                        if STREAM_VAD_DEBUG:
+                            print(f'[asr-stream] recoverable final error session={session_id}: {exc}')
+                        await websocket.send_json(
+                            {
+                                'type': 'final',
+                                'sessionId': session_id,
+                                'text': '',
+                                'isFinal': True,
+                                'language': session.language or '',
+                                'elapsedMs': 0,
+                            }
+                        )
+                        continue
                     await websocket.send_json(_build_stream_error(session_id, 'E_ASR_TRANSCRIBE', str(exc)))
                     continue
 
