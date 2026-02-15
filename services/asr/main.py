@@ -2,6 +2,7 @@ import asyncio
 import base64
 import os
 import tempfile
+import threading
 import time
 import wave
 from dataclasses import dataclass
@@ -16,6 +17,7 @@ app = FastAPI()
 MODEL = None
 MODEL_LOAD_ERROR = None
 MODEL_RUNTIME = {}
+MODEL_INFER_LOCK = threading.Lock()
 
 MODEL_NAME = os.getenv('ASR_MODEL_NAME', 'Qwen/Qwen3-ASR-0.6B')
 MODEL_DIR = os.getenv('ASR_MODEL_DIR')
@@ -42,6 +44,7 @@ class StreamingSession:
     last_partial_samples: int
     last_partial_emit_ms: int
     last_partial_text: str
+    transcribing: bool
 
 
 def _resolve_model_id() -> str:
@@ -143,14 +146,15 @@ def _ensure_model_ready() -> None:
 
 
 def _run_transcribe(audio_path: str, language: Optional[str]):
-    try:
-        return MODEL.transcribe(audio=audio_path, language=language)
-    except Exception as transcribe_exc:
-        msg = str(transcribe_exc).lower()
-        if 'meta tensor' in msg or 'cannot copy out of meta tensor' in msg:
-            _reload_model_cpu_fallback(str(transcribe_exc))
+    with MODEL_INFER_LOCK:
+        try:
             return MODEL.transcribe(audio=audio_path, language=language)
-        raise
+        except Exception as transcribe_exc:
+            msg = str(transcribe_exc).lower()
+            if 'meta tensor' in msg or 'cannot copy out of meta tensor' in msg:
+                _reload_model_cpu_fallback(str(transcribe_exc))
+                return MODEL.transcribe(audio=audio_path, language=language)
+            raise
 
 
 def _transcribe_pcm16le_bytes(pcm16le: bytes, language: Optional[str]):
@@ -282,6 +286,7 @@ async def stream_asr(websocket: WebSocket):
                     last_partial_samples=0,
                     last_partial_emit_ms=0,
                     last_partial_text='',
+                    transcribing=False,
                 )
                 continue
 
@@ -312,10 +317,11 @@ async def stream_asr(websocket: WebSocket):
                     and now_ms - session.last_partial_emit_ms >= STREAM_PARTIAL_MIN_INTERVAL_MS
                 )
 
-                if not should_emit_partial:
+                if not should_emit_partial or session.transcribing:
                     continue
 
                 try:
+                    session.transcribing = True
                     partial = await asyncio.to_thread(
                         _transcribe_pcm16le_bytes,
                         bytes(session.pcm16le),
@@ -323,7 +329,10 @@ async def stream_asr(websocket: WebSocket):
                     )
                 except Exception as exc:
                     await websocket.send_json(_build_stream_error(session_id, 'E_ASR_TRANSCRIBE', str(exc)))
+                    session.transcribing = False
                     continue
+                finally:
+                    session.transcribing = False
 
                 session.last_partial_samples = total_samples
                 session.last_partial_emit_ms = now_ms
