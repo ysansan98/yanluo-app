@@ -5,7 +5,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import icon from '../../resources/icon.png?asset'
 import { AsrService } from './asrService'
 import { getModelDir, getModelId, ModelDownloader, modelExists } from './modelManager'
-import { MacGlobalHotkeyManager } from './voice'
+import { CommandAudioCapture, MacGlobalHotkeyManager } from './voice'
 
 const asrService = new AsrService()
 const modelDownloader = new ModelDownloader()
@@ -14,7 +14,13 @@ const hotkeyManager = new MacGlobalHotkeyManager({
     console.info(`[voice-hotkey] ${message}`, extra ?? {})
   },
 })
+const audioCapture = new CommandAudioCapture({
+  log: (message, extra) => {
+    console.info(`[voice-audio] ${message}`, extra ?? {})
+  },
+})
 let mainWindow: BrowserWindow | null = null
+let captureChunkCount = 0
 
 function createWindow(): void {
   // Create the browser window.
@@ -113,11 +119,28 @@ app.whenReady().then(() => {
   asrService.start().catch((err) => {
     console.error('Failed to start ASR service:', err)
   })
+  audioCapture.onChunk((chunk) => {
+    captureChunkCount += 1
+    // Keep logs sparse to avoid flooding main process output.
+    if (captureChunkCount % 25 === 0) {
+      console.info('[voice-audio] streaming chunk progress', {
+        chunkCount: captureChunkCount,
+        timestampMs: chunk.timestampMs,
+      })
+    }
+  })
   hotkeyManager.onPress(() => {
     console.info('[voice-hotkey] command+0 pressed')
+    captureChunkCount = 0
+    audioCapture.start().catch((err) => {
+      console.error('[voice-audio] failed to start capture', err)
+    })
   })
   hotkeyManager.onRelease(() => {
     console.info('[voice-hotkey] command+0 released')
+    audioCapture.stop().catch((err) => {
+      console.error('[voice-audio] failed to stop capture', err)
+    })
   })
   hotkeyManager.onError((err) => {
     console.error('[voice-hotkey] unavailable', err)
@@ -151,6 +174,9 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   asrService.stop()
+  audioCapture.stop().catch((err) => {
+    console.error('Failed to stop audio capture:', err)
+  })
   hotkeyManager.stop().catch((err) => {
     console.error('Failed to stop global hotkey manager:', err)
   })
