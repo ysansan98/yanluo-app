@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 
+import type { VoiceApi } from './types/voice'
+
 interface Window {
   api: {
     asr: {
@@ -13,5 +15,6 @@ interface Window {
       ) => Promise<{ text: string, language: string, elapsed_ms?: number }>
       pickAudioFile: () => Promise<string | null>
     }
+    voice: VoiceApi
   }
 }

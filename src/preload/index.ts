@@ -1,6 +1,7 @@
 import process from 'node:process'
 import { electronAPI } from '@electron-toolkit/preload'
 import { contextBridge, ipcRenderer } from 'electron'
+import { createVoiceBridge } from './voiceBridge'
 
 // Custom APIs for renderer
 const api = {
@@ -18,6 +19,7 @@ const api = {
       ipcRenderer.invoke('asr:transcribeFile', path, language),
     pickAudioFile: () => ipcRenderer.invoke('asr:pickAudioFile'),
   },
+  voice: createVoiceBridge(),
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to
