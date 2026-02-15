@@ -218,6 +218,13 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     })
 
     this.deps.asrClient.onError((err) => {
+      if (this.state === 'FINALIZING') {
+        this.log('ignore ASR error during finalizing and wait for fallback path', {
+          code: err.code,
+          message: err.message,
+        })
+        return
+      }
       void this.fail(err, 'asr-error')
     })
   }
