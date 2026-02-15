@@ -18,6 +18,17 @@ interface SessionOrchestratorDeps {
   asrClient: StreamingAsrClient
   textInjector: TextInjector
   permissionChecker: PermissionChecker
+  enableHotkey?: boolean
+  onUiShow?: (payload: { sessionId: string, status: 'arming' | 'recording' | 'finalizing' }) => void
+  onUiUpdate?: (payload: {
+    sessionId: string
+    status: 'recording' | 'finalizing'
+    partialText: string
+    elapsedMs: number
+  }) => void
+  onUiFinal?: (payload: { sessionId: string, finalText: string, mode: 'pasted' | 'clipboard' }) => void
+  onUiHide?: () => void
+  onUiToast?: (payload: { type: 'info' | 'success' | 'warning' | 'error', message: string }) => void
   log?: (message: string, extra?: Record<string, unknown>) => void
 }
 
@@ -42,6 +53,7 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
   private waitFinalResolver: ((value: AsrFinalResponse | null) => void) | null = null
   private waitFinalTimer: NodeJS.Timeout | null = null
   private failing = false
+  private hotkeyBound = false
 
   constructor(private readonly deps: SessionOrchestratorDeps) {
     this.log = deps.log ?? ((message, extra) => console.info(`[voice-session] ${message}`, extra ?? {}))
@@ -49,13 +61,19 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
 
   async init(): Promise<void> {
     this.bindEvents()
-    await this.deps.hotkeyManager.start()
+    if (this.deps.enableHotkey ?? true) {
+      await this.deps.hotkeyManager.start()
+      this.hotkeyBound = true
+    }
     this.log('initialized')
   }
 
   async dispose(): Promise<void> {
     await this.cleanupSession('dispose')
-    await this.deps.hotkeyManager.stop()
+    if (this.hotkeyBound) {
+      await this.deps.hotkeyManager.stop()
+      this.hotkeyBound = false
+    }
     this.state = 'IDLE'
     this.log('disposed')
   }
@@ -78,6 +96,7 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
       },
     }
     this.transition('ARMING', { sessionId })
+    this.deps.onUiShow?.({ sessionId, status: 'arming' })
 
     try {
       const micPermission = await this.deps.permissionChecker.ensureOrPrompt('MICROPHONE')
@@ -94,6 +113,12 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
       await this.deps.audioCapture.start()
 
       this.transition('STREAMING', { sessionId })
+      this.deps.onUiUpdate?.({
+        sessionId,
+        status: 'recording',
+        partialText: '',
+        elapsedMs: Date.now() - (this.session?.metrics.startedAt ?? Date.now()),
+      })
     }
     catch (error) {
       await this.fail(error, 'handleHotkeyPress')
@@ -120,6 +145,12 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
 
     try {
       this.transition('FINALIZING', { sessionId: session.sessionId })
+      this.deps.onUiUpdate?.({
+        sessionId: session.sessionId,
+        status: 'finalizing',
+        partialText: session.partialText,
+        elapsedMs: Date.now() - session.metrics.startedAt,
+      })
       await this.deps.audioCapture.stop()
       await this.deps.asrClient.end(session.sessionId)
 
@@ -171,9 +202,15 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
         mode: injectResult.mode,
         elapsedMs: session.metrics.injectedAt - session.metrics.startedAt,
       })
+      this.deps.onUiFinal?.({
+        sessionId: session.sessionId,
+        finalText: resolvedText,
+        mode: injectResult.mode === 'PASTE' ? 'pasted' : 'clipboard',
+      })
 
       await this.cleanupSession('done')
       this.transition('IDLE')
+      this.deps.onUiHide?.()
     }
     catch (error) {
       await this.fail(error, 'handleHotkeyRelease')
@@ -181,15 +218,17 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
   }
 
   private bindEvents(): void {
-    this.deps.hotkeyManager.onPress(() => {
-      void this.handleHotkeyPress()
-    })
-    this.deps.hotkeyManager.onRelease(() => {
-      void this.handleHotkeyRelease()
-    })
-    this.deps.hotkeyManager.onError((err) => {
-      void this.fail(err, 'hotkey-error')
-    })
+    if (this.deps.enableHotkey ?? true) {
+      this.deps.hotkeyManager.onPress(() => {
+        void this.handleHotkeyPress()
+      })
+      this.deps.hotkeyManager.onRelease(() => {
+        void this.handleHotkeyRelease()
+      })
+      this.deps.hotkeyManager.onError((err) => {
+        void this.fail(err, 'hotkey-error')
+      })
+    }
 
     this.deps.audioCapture.onChunk((chunk) => {
       if (this.state !== 'STREAMING')
@@ -210,6 +249,12 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
         sessionId: msg.sessionId,
         textLength: msg.text.length,
         text: msg.text,
+      })
+      this.deps.onUiUpdate?.({
+        sessionId: msg.sessionId,
+        status: this.state === 'FINALIZING' ? 'finalizing' : 'recording',
+        partialText: msg.text,
+        elapsedMs: Date.now() - (this.session?.metrics.startedAt ?? Date.now()),
       })
     })
 
@@ -285,8 +330,10 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
       message: err.message,
       recoverable: err.recoverable,
     })
+    this.deps.onUiToast?.({ type: 'error', message: err.message })
     await this.cleanupSession(`failed:${phase}`)
     this.transition('IDLE')
+    this.deps.onUiHide?.()
     this.failing = false
   }
 

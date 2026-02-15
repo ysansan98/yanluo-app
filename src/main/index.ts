@@ -11,6 +11,7 @@ import {
   MacPermissionChecker,
   RendererAudioCapture,
   StubTextInjector,
+  VOICE_IPC,
   WsStreamingAsrClient,
 } from './voice'
 
@@ -41,6 +42,22 @@ const sessionOrchestrator = new DefaultSessionOrchestrator({
   asrClient,
   textInjector,
   permissionChecker,
+  enableHotkey: false,
+  onUiShow: (payload) => {
+    mainWindow?.webContents.send(VOICE_IPC.UI_SHOW, payload)
+  },
+  onUiUpdate: (payload) => {
+    mainWindow?.webContents.send(VOICE_IPC.UI_UPDATE, payload)
+  },
+  onUiFinal: (payload) => {
+    mainWindow?.webContents.send(VOICE_IPC.UI_FINAL, payload)
+  },
+  onUiHide: () => {
+    mainWindow?.webContents.send(VOICE_IPC.UI_HIDE)
+  },
+  onUiToast: (payload) => {
+    mainWindow?.webContents.send(VOICE_IPC.UI_TOAST, payload)
+  },
   log: (message, extra) => {
     console.info(`[voice-session] ${message}`, extra ?? {})
   },
@@ -160,6 +177,14 @@ app.whenReady().then(() => {
       return null
     return result.filePaths[0]
   })
+  ipcMain.handle('voice:recording:start', async () => {
+    await sessionOrchestrator.handleHotkeyPress()
+    return { ok: true as const }
+  })
+  ipcMain.handle('voice:recording:stop', async () => {
+    await sessionOrchestrator.handleHotkeyRelease()
+    return { ok: true as const }
+  })
 
   asrService.start().catch((err) => {
     console.error('Failed to start ASR service:', err)
@@ -177,9 +202,6 @@ app.whenReady().then(() => {
       createWindow()
   })
 
-  app.on('browser-window-blur', () => {
-    hotkeyManager.reset('app-will-resign-active')
-  })
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common

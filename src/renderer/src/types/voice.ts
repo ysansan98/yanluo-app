@@ -46,4 +46,6 @@ export interface VoiceApi {
     inputDeviceLabel?: string
   }) => void
   sendAudioError: (payload: { message: string }) => void
+  startRecording: () => Promise<{ ok: true }>
+  stopRecording: () => Promise<{ ok: true }>
 }

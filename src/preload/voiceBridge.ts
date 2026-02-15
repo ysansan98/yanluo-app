@@ -32,6 +32,8 @@ export interface VoiceBridgeApi {
     inputDeviceLabel?: string
   }) => void
   sendAudioError: (payload: { message: string }) => void
+  startRecording: () => Promise<{ ok: true }>
+  stopRecording: () => Promise<{ ok: true }>
 }
 
 function bindEvent<T>(channel: string, handler: (payload: T) => void): () => void {
@@ -64,5 +66,7 @@ export function createVoiceBridge(): VoiceBridgeApi {
     sendAudioChunk: payload => ipcRenderer.send('voice:audio:chunk', payload),
     sendAudioState: payload => ipcRenderer.send('voice:audio:state', payload),
     sendAudioError: payload => ipcRenderer.send('voice:audio:error', payload),
+    startRecording: () => ipcRenderer.invoke('voice:recording:start'),
+    stopRecording: () => ipcRenderer.invoke('voice:recording:stop'),
   }
 }

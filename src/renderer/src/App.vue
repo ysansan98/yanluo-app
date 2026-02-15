@@ -13,6 +13,12 @@ const resultCardRef = ref<HTMLElement | null>(null)
 const modelInfo = ref<{ modelId: string, modelDir: string, exists: boolean } | null>(null)
 const downloadLogs = ref<string>('')
 let unsubscribeLogs: (() => void) | null = null
+const liveIsRecording = ref<boolean>(false)
+const liveStatus = ref<string>('Idle')
+const livePartialText = ref<string>('')
+const liveFinalText = ref<string>('')
+const liveElapsedMs = ref<number>(0)
+const voiceUnsubscribers: Array<() => void> = []
 
 async function refreshModelInfo(): Promise<void> {
   modelInfo.value = await window.api.asr.modelInfo()
@@ -92,15 +98,61 @@ async function checkHealth(): Promise<void> {
   }
 }
 
+async function startLiveRecording(): Promise<void> {
+  liveStatus.value = 'Starting...'
+  livePartialText.value = ''
+  liveFinalText.value = ''
+  liveElapsedMs.value = 0
+  await window.api.voice.startRecording()
+}
+
+async function stopLiveRecording(): Promise<void> {
+  liveStatus.value = 'Finalizing...'
+  await window.api.voice.stopRecording()
+}
+
+async function toggleLiveRecording(): Promise<void> {
+  if (liveIsRecording.value) {
+    await stopLiveRecording()
+    return
+  }
+  await startLiveRecording()
+}
+
 onMounted(async () => {
   await refreshModelInfo()
   unsubscribeLogs = window.api.asr.onDownloadLog((payload) => {
     downloadLogs.value += `[${payload.type}] ${payload.message}\n`
   })
+  voiceUnsubscribers.push(window.api.voice.onShow((payload) => {
+    liveStatus.value = payload.status === 'arming' ? 'Arming microphone...' : 'Recording...'
+    liveIsRecording.value = true
+  }))
+  voiceUnsubscribers.push(window.api.voice.onUpdate((payload) => {
+    liveIsRecording.value = payload.status !== 'finalizing'
+    liveStatus.value = payload.status === 'finalizing' ? 'Finalizing...' : 'Recording...'
+    livePartialText.value = payload.partialText
+    liveElapsedMs.value = payload.elapsedMs
+  }))
+  voiceUnsubscribers.push(window.api.voice.onFinal((payload) => {
+    liveIsRecording.value = false
+    liveStatus.value = payload.mode === 'pasted' ? 'Done (pasted)' : 'Done (copied to clipboard)'
+    liveFinalText.value = payload.finalText
+    resultText.value = payload.finalText
+  }))
+  voiceUnsubscribers.push(window.api.voice.onHide(() => {
+    liveIsRecording.value = false
+  }))
+  voiceUnsubscribers.push(window.api.voice.onToast((payload) => {
+    liveStatus.value = payload.message
+  }))
 })
 
 onBeforeUnmount(() => {
   unsubscribeLogs?.()
+  for (const dispose of voiceUnsubscribers) {
+    dispose()
+  }
 })
 </script>
 
@@ -116,6 +168,38 @@ onBeforeUnmount(() => {
         Offline speech-to-text (file first), with online polishing later.
       </div>
     </header>
+
+    <section class="mx-auto mb-[18px] max-w-[900px] rounded-2xl border border-[#1b4dff]/25 bg-white/90 p-5 shadow-[0_12px_30px_rgba(20,20,40,0.08)]">
+      <div class="mb-3 text-base font-bold text-[#1637b8]">
+        Live Dictation
+      </div>
+      <div class="mb-3 flex items-center justify-start gap-3 max-[720px]:items-stretch max-[720px]:flex-col">
+        <button
+          class="cursor-pointer rounded-full border border-[#1b4dff] bg-[#1b4dff] px-[18px] py-2 font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+          @click="toggleLiveRecording"
+        >
+          {{ liveIsRecording ? 'Stop Recording' : 'Start Recording' }}
+        </button>
+      </div>
+      <div class="mt-1.5 min-h-[18px] text-[#555]">
+        Status: {{ liveStatus }}
+      </div>
+      <div class="mt-1.5 min-h-[18px] text-[#555]">
+        Live elapsed: {{ liveElapsedMs }} ms
+      </div>
+      <div class="mb-2 mt-3 font-semibold text-[#2f2f2f]">
+        Partial
+      </div>
+      <div class="min-h-14 w-full break-words rounded-xl border border-[#d5d5db] bg-white p-3 text-[13px] leading-6 whitespace-pre-wrap text-[#111] [font-family:'IBM_Plex_Mono',monospace]">
+        {{ livePartialText || '-' }}
+      </div>
+      <div class="mb-2 mt-3 font-semibold text-[#2f2f2f]">
+        Final
+      </div>
+      <div class="min-h-14 w-full break-words rounded-xl border border-[#d5d5db] bg-white p-3 text-[13px] leading-6 whitespace-pre-wrap text-[#111] [font-family:'IBM_Plex_Mono',monospace]">
+        {{ liveFinalText || '-' }}
+      </div>
+    </section>
 
     <section class="mx-auto mb-[18px] max-w-[900px] rounded-2xl border border-black/10 bg-white/85 p-5 shadow-[0_12px_30px_rgba(20,20,40,0.08)]">
       <div class="mb-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col">
