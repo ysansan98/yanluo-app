@@ -71,8 +71,9 @@ class MicCaptureBridge {
       ipcRenderer.send(IPC_AUDIO_STATE, { state: 'started', timestampMs: Date.now() })
     }
     catch (error) {
+      const name = error instanceof Error ? error.name : 'UnknownError'
       const message = error instanceof Error ? error.message : String(error)
-      ipcRenderer.send(IPC_AUDIO_ERROR, { message })
+      ipcRenderer.send(IPC_AUDIO_ERROR, { message: `${name}: ${message}` })
       await this.stop()
     }
   }

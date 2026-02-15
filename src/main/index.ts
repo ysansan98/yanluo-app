@@ -1,11 +1,18 @@
 import { join } from 'node:path'
 import process from 'node:process'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { app, BrowserWindow, dialog, ipcMain, session, shell, systemPreferences } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron'
 import icon from '../../resources/icon.png?asset'
 import { AsrService } from './asrService'
 import { getModelDir, getModelId, ModelDownloader, modelExists } from './modelManager'
-import { MacGlobalHotkeyManager, RendererAudioCapture } from './voice'
+import {
+  DefaultSessionOrchestrator,
+  MacGlobalHotkeyManager,
+  MacPermissionChecker,
+  RendererAudioCapture,
+  StubTextInjector,
+  WsStreamingAsrClient,
+} from './voice'
 
 const asrService = new AsrService()
 const modelDownloader = new ModelDownloader()
@@ -20,23 +27,25 @@ const audioCapture = new RendererAudioCapture({
     console.info(`[voice-audio] ${message}`, extra ?? {})
   },
 })
+const asrClient = new WsStreamingAsrClient({
+  wsUrl: asrService.baseUrl.replace('http://', 'ws://').concat('/asr/stream'),
+  log: (message, extra) => {
+    console.info(`[voice-asr] ${message}`, extra ?? {})
+  },
+})
+const permissionChecker = new MacPermissionChecker()
+const textInjector = new StubTextInjector()
+const sessionOrchestrator = new DefaultSessionOrchestrator({
+  hotkeyManager,
+  audioCapture,
+  asrClient,
+  textInjector,
+  permissionChecker,
+  log: (message, extra) => {
+    console.info(`[voice-session] ${message}`, extra ?? {})
+  },
+})
 let mainWindow: BrowserWindow | null = null
-let captureChunkCount = 0
-
-async function ensureMicrophoneAccess(): Promise<boolean> {
-  if (process.platform !== 'darwin')
-    return true
-
-  const status = systemPreferences.getMediaAccessStatus('microphone')
-  console.info('[voice-audio] microphone access status', { status })
-
-  if (status === 'granted')
-    return true
-
-  const granted = await systemPreferences.askForMediaAccess('microphone')
-  console.info('[voice-audio] askForMediaAccess result', { granted })
-  return granted
-}
 
 function setupMediaPermissionHandlers(): void {
   session.defaultSession.setPermissionCheckHandler((_wc, permission, _origin, details) => {
@@ -155,42 +164,8 @@ app.whenReady().then(() => {
   asrService.start().catch((err) => {
     console.error('Failed to start ASR service:', err)
   })
-  audioCapture.onChunk((chunk) => {
-    captureChunkCount += 1
-    // Keep logs sparse to avoid flooding main process output.
-    if (captureChunkCount % 25 === 0) {
-      console.info('[voice-audio] streaming chunk progress', {
-        chunkCount: captureChunkCount,
-        timestampMs: chunk.timestampMs,
-      })
-    }
-  })
-  hotkeyManager.onPress(() => {
-    console.info('[voice-hotkey] command+0 pressed')
-    captureChunkCount = 0
-    ensureMicrophoneAccess()
-      .then((granted) => {
-        if (!granted) {
-          console.error('[voice-audio] microphone permission denied by system')
-          return
-        }
-        return audioCapture.start()
-      })
-      .catch((err) => {
-        console.error('[voice-audio] failed to start capture', err)
-      })
-  })
-  hotkeyManager.onRelease(() => {
-    console.info('[voice-hotkey] command+0 released')
-    audioCapture.stop().catch((err) => {
-      console.error('[voice-audio] failed to stop capture', err)
-    })
-  })
-  hotkeyManager.onError((err) => {
-    console.error('[voice-hotkey] unavailable', err)
-  })
-  hotkeyManager.start().catch((err) => {
-    console.error('Failed to start global hotkey manager:', err)
+  sessionOrchestrator.init().catch((err) => {
+    console.error('Failed to initialize voice session orchestrator:', err)
   })
 
   createWindow()
@@ -218,11 +193,8 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   asrService.stop()
-  audioCapture.stop().catch((err) => {
-    console.error('Failed to stop audio capture:', err)
-  })
-  hotkeyManager.stop().catch((err) => {
-    console.error('Failed to stop global hotkey manager:', err)
+  sessionOrchestrator.dispose().catch((err) => {
+    console.error('Failed to dispose voice session orchestrator:', err)
   })
 })
 
