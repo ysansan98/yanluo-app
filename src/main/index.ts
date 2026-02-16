@@ -1,8 +1,7 @@
 import type { BrowserWindow } from 'electron'
-import process from 'node:process'
-import { electronApp, optimizer } from '@electron-toolkit/utils'
-import { app, screen } from 'electron'
+import { screen } from 'electron'
 import icon from '../../resources/icon.png?asset'
+import { registerAppLifecycle } from './appLifecycle'
 import { AsrService } from './asrService'
 import { ModelDownloader } from './modelManager'
 import { setupMediaPermissionHandlers } from './permissions/mediaPermissions'
@@ -53,74 +52,52 @@ const { hotkeyManager, sessionOrchestrator } = createVoiceRuntime({
   },
 })
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
-  // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
-  setupMediaPermissionHandlers()
+registerAppLifecycle({
+  onReady: () => {
+    setupMediaPermissionHandlers()
 
-  // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
-  app.on('browser-window-created', (_, window) => {
-    optimizer.watchWindowShortcuts(window)
+    registerIpcHandlers({
+      asrService,
+      modelDownloader,
+      sessionOrchestrator,
+      getMainWindow: () => {
+        if (!mainWindow || mainWindow.isDestroyed())
+          return null
+        return mainWindow
+      },
+    })
 
+    asrService.start().catch((err) => {
+      console.error('Failed to start ASR service:', err)
+    })
+    sessionOrchestrator.init().catch((err) => {
+      console.error('Failed to initialize voice session orchestrator:', err)
+    })
+
+    mainWindow = createMainWindow({ icon })
+    voiceHudController.create()
+    screen.on('display-metrics-changed', () => voiceHudController.updateBounds())
+    screen.on('display-added', () => voiceHudController.updateBounds())
+    screen.on('display-removed', () => voiceHudController.updateBounds())
+  },
+  onBrowserWindowCreated: (window) => {
     window.on('blur', () => {
       hotkeyManager.reset('window-blur')
     })
-  })
-
-  registerIpcHandlers({
-    asrService,
-    modelDownloader,
-    sessionOrchestrator,
-    getMainWindow: () => {
-      if (!mainWindow || mainWindow.isDestroyed())
-        return null
-      return mainWindow
-    },
-  })
-
-  asrService.start().catch((err) => {
-    console.error('Failed to start ASR service:', err)
-  })
-  sessionOrchestrator.init().catch((err) => {
-    console.error('Failed to initialize voice session orchestrator:', err)
-  })
-
-  mainWindow = createMainWindow({ icon })
-  voiceHudController.create()
-  screen.on('display-metrics-changed', () => voiceHudController.updateBounds())
-  screen.on('display-added', () => voiceHudController.updateBounds())
-  screen.on('display-removed', () => voiceHudController.updateBounds())
-
-  app.on('activate', () => {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
+  },
+  onActivate: () => {
     if (!mainWindow || mainWindow.isDestroyed())
       mainWindow = createMainWindow({ icon })
     if (!voiceHudController.getWindow())
       voiceHudController.create()
-  })
-})
-
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
-})
-
-app.on('before-quit', () => {
-  voiceHudController.dispose()
-  asrService.stop()
-  sessionOrchestrator.dispose().catch((err) => {
-    console.error('Failed to dispose voice session orchestrator:', err)
-  })
+  },
+  onBeforeQuit: () => {
+    voiceHudController.dispose()
+    asrService.stop()
+    sessionOrchestrator.dispose().catch((err) => {
+      console.error('Failed to dispose voice session orchestrator:', err)
+    })
+  },
 })
 
 // In this file you can include the rest of your app's specific main process
