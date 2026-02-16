@@ -8,9 +8,9 @@ import { getModelDir, getModelId, ModelDownloader, modelExists } from './modelMa
 import {
   DefaultSessionOrchestrator,
   MacGlobalHotkeyManager,
+  MacTextInjector,
   MacPermissionChecker,
   RendererAudioCapture,
-  StubTextInjector,
   VOICE_IPC,
   WsStreamingAsrClient,
 } from './voice'
@@ -75,7 +75,7 @@ const asrClient = new WsStreamingAsrClient({
   },
 })
 const permissionChecker = new MacPermissionChecker()
-const textInjector = new StubTextInjector()
+const textInjector = new MacTextInjector()
 const sessionOrchestrator = new DefaultSessionOrchestrator({
   hotkeyManager,
   audioCapture,
