@@ -1,10 +1,11 @@
 import type { BrowserWindow } from 'electron'
 import process from 'node:process'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
-import { app, screen, session } from 'electron'
+import { app, screen } from 'electron'
 import icon from '../../resources/icon.png?asset'
 import { AsrService } from './asrService'
 import { ModelDownloader } from './modelManager'
+import { setupMediaPermissionHandlers } from './permissions/mediaPermissions'
 import { registerIpcHandlers } from './registerIpcHandlers'
 import { createVoiceRuntime, VOICE_IPC } from './voice'
 import { createMainWindow } from './windows/mainWindow'
@@ -51,25 +52,6 @@ const { hotkeyManager, sessionOrchestrator } = createVoiceRuntime({
     broadcastVoiceUi(VOICE_IPC.UI_TOAST, payload)
   },
 })
-
-function setupMediaPermissionHandlers(): void {
-  session.defaultSession.setPermissionCheckHandler((_wc, permission, _origin, details) => {
-    if (permission === 'media') {
-      const mediaType = (details as { mediaType?: string } | undefined)?.mediaType
-      return mediaType === 'audio' || mediaType === undefined
-    }
-    return false
-  })
-
-  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback, details) => {
-    if (permission === 'media') {
-      const mediaTypes = (details as { mediaTypes?: string[] } | undefined)?.mediaTypes ?? []
-      callback(mediaTypes.length === 0 || mediaTypes.includes('audio'))
-      return
-    }
-    callback(false)
-  })
-}
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
