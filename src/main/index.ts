@@ -1,11 +1,9 @@
 import type { BrowserWindow } from 'electron'
-import { screen } from 'electron'
 import icon from '../../resources/icon.png?asset'
 import { registerAppLifecycle } from './appLifecycle'
 import { AsrService } from './asrService'
+import { createMainAppHandlers } from './bootstrapMainApp'
 import { ModelDownloader } from './modelManager'
-import { setupMediaPermissionHandlers } from './permissions/mediaPermissions'
-import { registerIpcHandlers } from './registerIpcHandlers'
 import { createVoiceRuntime, VOICE_IPC } from './voice'
 import { createMainWindow } from './windows/mainWindow'
 import { VoiceHudWindowController } from './windows/voiceHudWindow'
@@ -52,52 +50,31 @@ const { hotkeyManager, sessionOrchestrator } = createVoiceRuntime({
   },
 })
 
-registerAppLifecycle({
-  onReady: () => {
-    setupMediaPermissionHandlers()
-
-    registerIpcHandlers({
-      asrService,
-      modelDownloader,
-      sessionOrchestrator,
-      getMainWindow: () => {
-        if (!mainWindow || mainWindow.isDestroyed())
-          return null
-        return mainWindow
-      },
-    })
-
-    asrService.start().catch((err) => {
-      console.error('Failed to start ASR service:', err)
-    })
-    sessionOrchestrator.init().catch((err) => {
-      console.error('Failed to initialize voice session orchestrator:', err)
-    })
-
-    mainWindow = createMainWindow({ icon })
-    voiceHudController.create()
-    screen.on('display-metrics-changed', () => voiceHudController.updateBounds())
-    screen.on('display-added', () => voiceHudController.updateBounds())
-    screen.on('display-removed', () => voiceHudController.updateBounds())
+const appHandlers = createMainAppHandlers({
+  asrService,
+  modelDownloader,
+  sessionOrchestrator,
+  voiceHudController,
+  createMainWindow: () => createMainWindow({ icon }),
+  getMainWindow: () => {
+    if (!mainWindow || mainWindow.isDestroyed())
+      return null
+    return mainWindow
   },
+  setMainWindow: (window) => {
+    mainWindow = window
+  },
+})
+
+registerAppLifecycle({
+  onReady: appHandlers.onReady,
   onBrowserWindowCreated: (window) => {
     window.on('blur', () => {
       hotkeyManager.reset('window-blur')
     })
   },
-  onActivate: () => {
-    if (!mainWindow || mainWindow.isDestroyed())
-      mainWindow = createMainWindow({ icon })
-    if (!voiceHudController.getWindow())
-      voiceHudController.create()
-  },
-  onBeforeQuit: () => {
-    voiceHudController.dispose()
-    asrService.stop()
-    sessionOrchestrator.dispose().catch((err) => {
-      console.error('Failed to dispose voice session orchestrator:', err)
-    })
-  },
+  onActivate: appHandlers.onActivate,
+  onBeforeQuit: appHandlers.onBeforeQuit,
 })
 
 // In this file you can include the rest of your app's specific main process
