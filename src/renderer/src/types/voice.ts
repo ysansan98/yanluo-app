@@ -48,4 +48,6 @@ export interface VoiceApi {
   sendAudioError: (payload: { message: string }) => void
   startRecording: () => Promise<{ ok: true }>
   stopRecording: () => Promise<{ ok: true }>
+  getConfig: () => Promise<{ continueWindowMs: number }>
+  setConfig: (payload: { continueWindowMs?: number }) => Promise<{ ok: true, continueWindowMs: number }>
 }

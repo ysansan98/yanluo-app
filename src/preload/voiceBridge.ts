@@ -34,6 +34,8 @@ export interface VoiceBridgeApi {
   sendAudioError: (payload: { message: string }) => void
   startRecording: () => Promise<{ ok: true }>
   stopRecording: () => Promise<{ ok: true }>
+  getConfig: () => Promise<{ continueWindowMs: number }>
+  setConfig: (payload: { continueWindowMs?: number }) => Promise<{ ok: true, continueWindowMs: number }>
 }
 
 function bindEvent<T>(channel: string, handler: (payload: T) => void): () => void {
@@ -68,5 +70,7 @@ export function createVoiceBridge(): VoiceBridgeApi {
     sendAudioError: payload => ipcRenderer.send('voice:audio:error', payload),
     startRecording: () => ipcRenderer.invoke('voice:recording:start'),
     stopRecording: () => ipcRenderer.invoke('voice:recording:stop'),
+    getConfig: () => ipcRenderer.invoke('voice:getConfig'),
+    setConfig: payload => ipcRenderer.invoke('voice:setConfig', payload),
   }
 }

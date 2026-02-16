@@ -1,5 +1,6 @@
-import { ipcMain, type WebContents } from 'electron'
+import type { WebContents } from 'electron'
 import type { AudioCapture, AudioChunk } from './types'
+import { ipcMain } from 'electron'
 
 const IPC_AUDIO_START = 'voice:audio:start'
 const IPC_AUDIO_STOP = 'voice:audio:stop'

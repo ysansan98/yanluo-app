@@ -1,6 +1,6 @@
+import type { PermissionChecker, PermissionKind, PermissionStatus } from './types'
 import process from 'node:process'
 import { systemPreferences } from 'electron'
-import type { PermissionChecker, PermissionKind, PermissionStatus } from './types'
 
 export class MacPermissionChecker implements PermissionChecker {
   async check(kind: PermissionKind): Promise<PermissionStatus> {

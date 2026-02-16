@@ -151,6 +151,8 @@ export interface SessionOrchestrator {
   dispose: () => Promise<void>
   handleHotkeyPress: () => Promise<void>
   handleHotkeyRelease: () => Promise<void>
+  getContinueWindowMs?: () => number
+  setContinueWindowMs?: (ms: number) => void
 }
 
 export const VOICE_TIMEOUT = {
@@ -158,4 +160,7 @@ export const VOICE_TIMEOUT = {
   FINAL_MS: 12000,
   ASR_IDLE_MS: 3000,
   UI_AUTO_HIDE_MS: 1000,
+  CONTINUE_WINDOW_MS: 2000,
+  CARRY_MERGE_WINDOW_MS: 2000,
+  PREEMPT_CARRY_WAIT_MS: 700,
 } as const

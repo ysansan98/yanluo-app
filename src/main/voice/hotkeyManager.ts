@@ -1,18 +1,17 @@
+import type { IGlobalKeyDownMap, IGlobalKeyEvent, IGlobalKeyListener } from 'node-global-key-listener'
+import type { HotkeyManager, VoiceError } from './types'
 import {
   GlobalKeyboardListener,
-  type IGlobalKeyDownMap,
-  type IGlobalKeyEvent,
-  type IGlobalKeyListener,
+
 } from 'node-global-key-listener'
-import type { HotkeyManager, VoiceError } from './types'
 
 interface HotkeyManagerOptions {
-  targetKey?: '0'
+  targetKey?: string
   log?: (message: string, extra?: Record<string, unknown>) => void
 }
 
-const META_KEYS = ['LEFT META', 'RIGHT META'] as const
-const HOTKEY_KEY = '0'
+const CTRL_KEYS = ['LEFT CTRL', 'RIGHT CTRL'] as const
+const HOTKEY_KEY = 'Z'
 
 export class MacGlobalHotkeyManager implements HotkeyManager {
   private readonly keyboard = new GlobalKeyboardListener({
@@ -27,7 +26,7 @@ export class MacGlobalHotkeyManager implements HotkeyManager {
     },
   })
 
-  private readonly targetKey: '0'
+  private readonly targetKey: string
   private readonly log: (message: string, extra?: Record<string, unknown>) => void
   private readonly listener: IGlobalKeyListener
 
@@ -50,7 +49,7 @@ export class MacGlobalHotkeyManager implements HotkeyManager {
     try {
       await this.keyboard.addListener(this.listener)
       this.started = true
-      this.log('registered global key listener', { combo: `META+${this.targetKey}` })
+      this.log('registered global key listener', { combo: `CTRL+${this.targetKey}` })
     }
     catch (error) {
       this.emitError({
@@ -70,7 +69,7 @@ export class MacGlobalHotkeyManager implements HotkeyManager {
     this.keyboard.kill()
     this.started = false
     this.reset('stop')
-    this.log('unregistered global key listener', { combo: `META+${this.targetKey}` })
+    this.log('unregistered global key listener', { combo: `CTRL+${this.targetKey}` })
   }
 
   reset(reason = 'manual-reset'): void {
@@ -94,9 +93,9 @@ export class MacGlobalHotkeyManager implements HotkeyManager {
   }
 
   private handleEvent(event: IGlobalKeyEvent, isDown: IGlobalKeyDownMap): void {
-    const hasMeta = META_KEYS.some(key => Boolean(isDown[key]))
+    const hasCtrl = CTRL_KEYS.some(key => Boolean(isDown[key]))
     const hasTarget = Boolean(isDown[this.targetKey])
-    const comboDown = hasMeta && hasTarget
+    const comboDown = hasCtrl && hasTarget
 
     if (comboDown && !this.hotkeyPressed && event.state === 'DOWN') {
       this.hotkeyPressed = true

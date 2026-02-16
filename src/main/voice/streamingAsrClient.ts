@@ -51,16 +51,22 @@ export class WsStreamingAsrClient implements StreamingAsrClient {
       this.ws = ws
 
       ws.addEventListener('open', () => {
+        if (this.ws !== ws)
+          return
         this.log('connected', { wsUrl: this.wsUrl })
         this.connecting = null
         resolve()
       })
 
       ws.addEventListener('message', (event) => {
+        if (this.ws !== ws)
+          return
         this.handleMessage(event.data)
       })
 
       ws.addEventListener('error', () => {
+        if (this.ws !== ws)
+          return
         const err: VoiceError = {
           code: 'E_ASR_CONNECT',
           message: 'WebSocket connection error',
@@ -70,6 +76,8 @@ export class WsStreamingAsrClient implements StreamingAsrClient {
       })
 
       ws.addEventListener('close', (event) => {
+        if (this.ws !== ws)
+          return
         this.log('disconnected', { code: event.code, reason: event.reason })
         this.acceptingAudio = false
         this.activeSessionId = null
