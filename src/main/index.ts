@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import process from 'node:process'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, screen, session, shell } from 'electron'
 import icon from '../../resources/icon.png?asset'
 import { AsrService } from './asrService'
 import { getModelDir, getModelId, ModelDownloader, modelExists } from './modelManager'
@@ -17,6 +17,46 @@ import {
 
 const asrService = new AsrService()
 const modelDownloader = new ModelDownloader()
+let mainWindow: BrowserWindow | null = null
+let voiceHudWindow: BrowserWindow | null = null
+let voiceHudHideTimer: NodeJS.Timeout | null = null
+
+function clearVoiceHudHideTimer(): void {
+  if (!voiceHudHideTimer)
+    return
+  clearTimeout(voiceHudHideTimer)
+  voiceHudHideTimer = null
+}
+
+function ensureVoiceHudWindowVisible(): void {
+  if (!voiceHudWindow || voiceHudWindow.isDestroyed())
+    return
+  clearVoiceHudHideTimer()
+  if (!voiceHudWindow.isVisible()) {
+    voiceHudWindow.showInactive()
+  }
+}
+
+function scheduleVoiceHudWindowHide(delayMs: number): void {
+  if (!voiceHudWindow || voiceHudWindow.isDestroyed())
+    return
+  clearVoiceHudHideTimer()
+  voiceHudHideTimer = setTimeout(() => {
+    if (!voiceHudWindow || voiceHudWindow.isDestroyed())
+      return
+    voiceHudWindow.hide()
+  }, delayMs)
+}
+
+function broadcastVoiceUi(channel: string, payload?: unknown): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(channel, payload)
+  }
+  if (voiceHudWindow && !voiceHudWindow.isDestroyed()) {
+    voiceHudWindow.webContents.send(channel, payload)
+  }
+}
+
 const hotkeyManager = new MacGlobalHotkeyManager({
   log: (message, extra) => {
     console.info(`[voice-hotkey] ${message}`, extra ?? {})
@@ -42,27 +82,33 @@ const sessionOrchestrator = new DefaultSessionOrchestrator({
   asrClient,
   textInjector,
   permissionChecker,
-  enableHotkey: false,
+  enableHotkey: true,
   onUiShow: (payload) => {
-    mainWindow?.webContents.send(VOICE_IPC.UI_SHOW, payload)
+    ensureVoiceHudWindowVisible()
+    broadcastVoiceUi(VOICE_IPC.UI_SHOW, payload)
   },
   onUiUpdate: (payload) => {
-    mainWindow?.webContents.send(VOICE_IPC.UI_UPDATE, payload)
+    ensureVoiceHudWindowVisible()
+    broadcastVoiceUi(VOICE_IPC.UI_UPDATE, payload)
   },
   onUiFinal: (payload) => {
-    mainWindow?.webContents.send(VOICE_IPC.UI_FINAL, payload)
+    ensureVoiceHudWindowVisible()
+    scheduleVoiceHudWindowHide(2200)
+    broadcastVoiceUi(VOICE_IPC.UI_FINAL, payload)
   },
   onUiHide: () => {
-    mainWindow?.webContents.send(VOICE_IPC.UI_HIDE)
+    scheduleVoiceHudWindowHide(300)
+    broadcastVoiceUi(VOICE_IPC.UI_HIDE)
   },
   onUiToast: (payload) => {
-    mainWindow?.webContents.send(VOICE_IPC.UI_TOAST, payload)
+    ensureVoiceHudWindowVisible()
+    scheduleVoiceHudWindowHide(payload.type === 'error' ? 2200 : 1600)
+    broadcastVoiceUi(VOICE_IPC.UI_TOAST, payload)
   },
   log: (message, extra) => {
     console.info(`[voice-session] ${message}`, extra ?? {})
   },
 })
-let mainWindow: BrowserWindow | null = null
 
 function setupMediaPermissionHandlers(): void {
   session.defaultSession.setPermissionCheckHandler((_wc, permission, _origin, details) => {
@@ -114,6 +160,67 @@ function createWindow(): void {
   else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+}
+
+function updateVoiceHudWindowBounds(): void {
+  if (!voiceHudWindow || voiceHudWindow.isDestroyed())
+    return
+  const workArea = screen.getPrimaryDisplay().workArea
+  const width = 360
+  const height = 98
+  const x = Math.round(workArea.x + (workArea.width - width) / 2)
+  const y = Math.round(workArea.y + workArea.height - height - 88)
+  voiceHudWindow.setBounds({ x, y, width, height })
+}
+
+function createVoiceHudWindow(): void {
+  const workArea = screen.getPrimaryDisplay().workArea
+  const width = 360
+  const height = 98
+  const x = Math.round(workArea.x + (workArea.width - width) / 2)
+  const y = Math.round(workArea.y + workArea.height - height - 88)
+
+  voiceHudWindow = new BrowserWindow({
+    width,
+    height,
+    x,
+    y,
+    frame: false,
+    transparent: true,
+    show: false,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    closable: false,
+    focusable: false,
+    skipTaskbar: true,
+    hasShadow: false,
+    backgroundColor: '#00000000',
+    ...(process.platform === 'linux' ? { icon } : {}),
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false,
+    },
+  })
+
+  voiceHudWindow.setAlwaysOnTop(true, 'screen-saver')
+  voiceHudWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  voiceHudWindow.setIgnoreMouseEvents(true, { forward: true })
+
+  if (is.dev && process.env.ELECTRON_RENDERER_URL) {
+    voiceHudWindow.loadURL(`${process.env.ELECTRON_RENDERER_URL}#/voice-hud`)
+  }
+  else {
+    voiceHudWindow.loadFile(join(__dirname, '../renderer/index.html'), {
+      hash: '/voice-hud',
+    })
+  }
+
+  voiceHudWindow.on('closed', () => {
+    clearVoiceHudHideTimer()
+    voiceHudWindow = null
+  })
 }
 
 // This method will be called when Electron has finished
@@ -185,6 +292,18 @@ app.whenReady().then(() => {
     await sessionOrchestrator.handleHotkeyRelease()
     return { ok: true as const }
   })
+  ipcMain.handle('voice:getConfig', async () => ({
+    continueWindowMs: sessionOrchestrator.getContinueWindowMs?.() ?? 2000,
+  }))
+  ipcMain.handle('voice:setConfig', async (_event, payload: { continueWindowMs?: number }) => {
+    if (typeof payload?.continueWindowMs === 'number') {
+      sessionOrchestrator.setContinueWindowMs?.(payload.continueWindowMs)
+    }
+    return {
+      ok: true as const,
+      continueWindowMs: sessionOrchestrator.getContinueWindowMs?.() ?? 2000,
+    }
+  })
 
   asrService.start().catch((err) => {
     console.error('Failed to start ASR service:', err)
@@ -194,14 +313,19 @@ app.whenReady().then(() => {
   })
 
   createWindow()
+  createVoiceHudWindow()
+  screen.on('display-metrics-changed', updateVoiceHudWindowBounds)
+  screen.on('display-added', updateVoiceHudWindowBounds)
+  screen.on('display-removed', updateVoiceHudWindowBounds)
 
   app.on('activate', () => {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0)
+    if (!mainWindow || mainWindow.isDestroyed())
       createWindow()
+    if (!voiceHudWindow || voiceHudWindow.isDestroyed())
+      createVoiceHudWindow()
   })
-
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common
@@ -214,6 +338,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  clearVoiceHudHideTimer()
   asrService.stop()
   sessionOrchestrator.dispose().catch((err) => {
     console.error('Failed to dispose voice session orchestrator:', err)
