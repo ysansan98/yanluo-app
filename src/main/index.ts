@@ -8,8 +8,8 @@ import { getModelDir, getModelId, ModelDownloader, modelExists } from './modelMa
 import {
   DefaultSessionOrchestrator,
   MacGlobalHotkeyManager,
-  MacTextInjector,
   MacPermissionChecker,
+  MacTextInjector,
   RendererAudioCapture,
   VOICE_IPC,
   WsStreamingAsrClient,

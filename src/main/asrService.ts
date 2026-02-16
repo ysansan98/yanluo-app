@@ -1,5 +1,6 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import { spawn } from 'node:child_process'
+import process from 'node:process'
 import { getModelDir, getModelId } from './modelManager'
 import { buildPythonEnv, getAsrServiceDir, resolvePythonCmd } from './pythonEnv'
 

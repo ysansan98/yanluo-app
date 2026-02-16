@@ -561,7 +561,7 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     if (!b)
       return a
     const last = a[a.length - 1]
-    const needsSpace = /[A-Za-z0-9]$/.test(last) && /^[A-Za-z0-9]/.test(b)
+    const needsSpace = /[A-Z0-9]$/i.test(last) && /^[A-Z0-9]/i.test(b)
     return needsSpace ? `${a} ${b}` : `${a}${b}`
   }
 

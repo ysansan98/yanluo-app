@@ -1,5 +1,6 @@
 import type { WebContents } from 'electron'
 import type { AudioCapture, AudioChunk } from './types'
+import { Buffer } from 'node:buffer'
 import { ipcMain } from 'electron'
 
 const IPC_AUDIO_START = 'voice:audio:start'
