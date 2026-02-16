@@ -6,15 +6,7 @@ import icon from '../../resources/icon.png?asset'
 import { AsrService } from './asrService'
 import { ModelDownloader } from './modelManager'
 import { registerIpcHandlers } from './registerIpcHandlers'
-import {
-  DefaultSessionOrchestrator,
-  MacGlobalHotkeyManager,
-  MacPermissionChecker,
-  MacTextInjector,
-  RendererAudioCapture,
-  VOICE_IPC,
-  WsStreamingAsrClient,
-} from './voice'
+import { createVoiceRuntime, VOICE_IPC } from './voice'
 import { createMainWindow } from './windows/mainWindow'
 import { VoiceHudWindowController } from './windows/voiceHudWindow'
 
@@ -33,32 +25,9 @@ function broadcastVoiceUi(channel: string, payload?: unknown): void {
   }
 }
 
-const hotkeyManager = new MacGlobalHotkeyManager({
-  log: (message, extra) => {
-    console.info(`[voice-hotkey] ${message}`, extra ?? {})
-  },
-})
-const audioCapture = new RendererAudioCapture({
+const { hotkeyManager, sessionOrchestrator } = createVoiceRuntime({
+  asrBaseUrl: asrService.baseUrl,
   getTargetWebContents: () => mainWindow?.webContents ?? null,
-  log: (message, extra) => {
-    console.info(`[voice-audio] ${message}`, extra ?? {})
-  },
-})
-const asrClient = new WsStreamingAsrClient({
-  wsUrl: asrService.baseUrl.replace('http://', 'ws://').concat('/asr/stream'),
-  log: (message, extra) => {
-    console.info(`[voice-asr] ${message}`, extra ?? {})
-  },
-})
-const permissionChecker = new MacPermissionChecker()
-const textInjector = new MacTextInjector()
-const sessionOrchestrator = new DefaultSessionOrchestrator({
-  hotkeyManager,
-  audioCapture,
-  asrClient,
-  textInjector,
-  permissionChecker,
-  enableHotkey: true,
   onUiShow: (payload) => {
     voiceHudController.ensureVisible()
     broadcastVoiceUi(VOICE_IPC.UI_SHOW, payload)
@@ -80,9 +49,6 @@ const sessionOrchestrator = new DefaultSessionOrchestrator({
     voiceHudController.ensureVisible()
     voiceHudController.scheduleHide(payload.type === 'error' ? 2200 : 1600)
     broadcastVoiceUi(VOICE_IPC.UI_TOAST, payload)
-  },
-  log: (message, extra) => {
-    console.info(`[voice-session] ${message}`, extra ?? {})
   },
 })
 

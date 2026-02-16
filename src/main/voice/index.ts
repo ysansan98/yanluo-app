@@ -1,4 +1,5 @@
 export * from './audioCapture'
+export * from './bootstrap'
 export * from './hotkeyManager'
 export * from './ipcChannels'
 export * from './permissionChecker'
