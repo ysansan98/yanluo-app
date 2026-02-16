@@ -1,6 +1,5 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import { spawn } from 'node:child_process'
-import process from 'node:process'
 import { getModelDir, getModelId } from './modelManager'
 import { buildPythonEnv, getAsrServiceDir, resolvePythonCmd } from './pythonEnv'
 
@@ -26,7 +25,9 @@ export class AsrService {
 
     const pythonCmd = resolvePythonCmd()
     const asrServiceDir = getAsrServiceDir()
-    const modelDir = getModelDir()
+    const modelName = process.env.ASR_MODEL_NAME || getModelId()
+    const modelDir = process.env.ASR_MODEL_DIR || getModelDir()
+    const allowDownload = process.env.ASR_ALLOW_DOWNLOAD || '0'
 
     this.proc = spawn(
       pythonCmd,
@@ -35,10 +36,9 @@ export class AsrService {
         cwd: asrServiceDir,
         env: buildPythonEnv({
           ...process.env,
-          ASR_MODEL_NAME: getModelId(),
+          ASR_MODEL_NAME: modelName,
           ASR_MODEL_DIR: modelDir,
-          ASR_ALLOW_DOWNLOAD: '0',
-          ASR_DEVICE: process.platform === 'darwin' ? 'cpu' : process.env.ASR_DEVICE,
+          ASR_ALLOW_DOWNLOAD: allowDownload,
         }),
         stdio: 'pipe',
       },

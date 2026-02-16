@@ -1,12 +1,14 @@
 import asyncio
 import base64
+from math import gcd
 import os
+import re
 import tempfile
 import threading
 import time
 import wave
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -19,11 +21,9 @@ MODEL_LOAD_ERROR = None
 MODEL_RUNTIME = {}
 MODEL_INFER_LOCK = threading.Lock()
 
-MODEL_NAME = os.getenv('ASR_MODEL_NAME', 'Qwen/Qwen3-ASR-0.6B')
+MODEL_NAME = os.getenv('ASR_MODEL_NAME', 'iic/SenseVoiceSmall-onnx')
 MODEL_DIR = os.getenv('ASR_MODEL_DIR')
 ALLOW_DOWNLOAD = os.getenv('ASR_ALLOW_DOWNLOAD', '0') == '1'
-DEVICE = os.getenv('ASR_DEVICE')  # e.g. "cuda:0", "mps", "cpu"
-DTYPE = os.getenv('ASR_DTYPE')  # e.g. "bfloat16", "float16", "float32"
 
 STREAM_SAMPLE_RATE = 16000
 STREAM_PARTIAL_MIN_SAMPLES = int(os.getenv('ASR_STREAM_PARTIAL_MIN_SAMPLES', '12000'))
@@ -33,6 +33,7 @@ STREAM_VAD_MIN_ACTIVE_RATIO = float(os.getenv('ASR_STREAM_VAD_MIN_ACTIVE_RATIO',
 STREAM_VAD_ACTIVE_ABS_THRESHOLD = float(os.getenv('ASR_STREAM_VAD_ACTIVE_ABS_THRESHOLD', '0.02'))
 STREAM_VAD_MIN_AUDIO_MS = int(os.getenv('ASR_STREAM_VAD_MIN_AUDIO_MS', '300'))
 STREAM_VAD_DEBUG = os.getenv('ASR_STREAM_VAD_DEBUG', '1') == '1'
+SENSEVOICE_ONNX_TOKENIZER_FILE = 'chn_jpn_yue_eng_ko_spectok.bpe.model'
 
 
 class TranscribeFileRequest(BaseModel):
@@ -63,83 +64,69 @@ def _resolve_model_id() -> str:
     )
 
 
+def _load_model_impl(model_id: str):
+    is_local_dir = os.path.isdir(model_id)
+    is_onnx_model = model_id.lower().endswith('-onnx') or (
+        is_local_dir
+        and (
+            os.path.exists(os.path.join(model_id, 'model_quant.onnx'))
+            or os.path.exists(os.path.join(model_id, 'model.onnx'))
+        )
+    )
+    if not is_onnx_model:
+        raise RuntimeError(
+            'Only SenseVoiceSmall ONNX quantized model is supported. '
+            f'Expected model repo/path like iic/SenseVoiceSmall-onnx, got: {model_id}'
+        )
+
+    try:
+        from funasr_onnx import SenseVoiceSmall
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            'SenseVoice ONNX backend requires extra dependencies. '
+            'Run: pip install funasr-onnx onnxruntime'
+        ) from exc
+
+    if is_local_dir:
+        tokenizer_path = os.path.join(model_id, SENSEVOICE_ONNX_TOKENIZER_FILE)
+        if not os.path.exists(tokenizer_path):
+            try:
+                from modelscope.hub.file_download import model_file_download
+
+                model_file_download(
+                    'iic/SenseVoiceSmall',
+                    SENSEVOICE_ONNX_TOKENIZER_FILE,
+                    local_dir=model_id,
+                )
+            except Exception as exc:
+                raise RuntimeError(
+                    'Failed to prepare SenseVoice ONNX tokenizer file. '
+                    f'Missing {SENSEVOICE_ONNX_TOKENIZER_FILE}: {exc}'
+                ) from exc
+
+    model = SenseVoiceSmall(
+        model_dir=model_id,
+        quantize=True,
+    )
+    runtime = {
+        'backend': 'sensevoice',
+        'engine': 'funasr_onnx',
+        'device': 'cpu',
+        'dtype': 'int8',
+    }
+    return model, runtime
+
+
 def _load_model():
     global MODEL, MODEL_LOAD_ERROR, MODEL_RUNTIME
     if MODEL is not None or MODEL_LOAD_ERROR is not None:
         return
 
     try:
-        import torch
-        from qwen_asr import Qwen3ASRModel
-
         model_id = _resolve_model_id()
-
-        requested_dtype = torch.float32
-        if DTYPE == 'float16':
-            requested_dtype = torch.float16
-        elif DTYPE == 'bfloat16':
-            requested_dtype = torch.bfloat16
-
-        requested_device = DEVICE
-        if not requested_device:
-            if torch.cuda.is_available():
-                requested_device = 'cuda:0'
-            else:
-                requested_device = 'cpu'
-
-        def _build_model(device_map, dtype):
-            return Qwen3ASRModel.from_pretrained(
-                model_id,
-                dtype=dtype,
-                device_map=device_map,
-                max_inference_batch_size=4,
-                max_new_tokens=1024,
-            )
-
-        try:
-            MODEL = _build_model(requested_device, requested_dtype)
-            MODEL_RUNTIME = {
-                'device': requested_device,
-                'dtype': str(requested_dtype),
-                'fallback': False,
-            }
-        except Exception as first_exc:
-            msg = str(first_exc).lower()
-            # Apple Silicon / accelerate can fail with meta tensor errors.
-            if 'meta tensor' in msg or 'cannot copy out of meta tensor' in msg:
-                MODEL = _build_model('cpu', torch.float32)
-                MODEL_RUNTIME = {
-                    'device': 'cpu',
-                    'dtype': str(torch.float32),
-                    'fallback': True,
-                    'fallback_reason': str(first_exc),
-                }
-            else:
-                raise
+        MODEL, MODEL_RUNTIME = _load_model_impl(model_id)
     except Exception as exc:
         MODEL_LOAD_ERROR = exc
-
-
-def _reload_model_cpu_fallback(reason: str):
-    global MODEL, MODEL_LOAD_ERROR, MODEL_RUNTIME
-    import torch
-    from qwen_asr import Qwen3ASRModel
-
-    model_id = _resolve_model_id()
-    MODEL = Qwen3ASRModel.from_pretrained(
-        model_id,
-        dtype=torch.float32,
-        device_map='cpu',
-        max_inference_batch_size=2,
-        max_new_tokens=1024,
-    )
-    MODEL_LOAD_ERROR = None
-    MODEL_RUNTIME = {
-        'device': 'cpu',
-        'dtype': str(torch.float32),
-        'fallback': True,
-        'fallback_reason': reason,
-    }
 
 
 def _ensure_model_ready() -> None:
@@ -150,22 +137,136 @@ def _ensure_model_ready() -> None:
         raise RuntimeError('Model failed to load')
 
 
+def _sensevoice_language(language: Optional[str]) -> str:
+    if not language:
+        return 'auto'
+
+    lang = language.strip().lower()
+    if not lang:
+        return 'auto'
+
+    aliases = {
+        'chinese': 'zh',
+        'mandarin': 'zh',
+        'zh-cn': 'zh',
+        'zh-hans': 'zh',
+        'zh': 'zh',
+        'english': 'en',
+        'en-us': 'en',
+        'en-gb': 'en',
+        'en': 'en',
+        'japanese': 'ja',
+        'ja': 'ja',
+        'jp': 'ja',
+        'korean': 'ko',
+        'ko': 'ko',
+        'cantonese': 'yue',
+        'yue': 'yue',
+        'zh-hk': 'yue',
+        'zh-yue': 'yue',
+        'auto': 'auto',
+    }
+    return aliases.get(lang, lang)
+
+
 def _run_transcribe(audio_path: str, language: Optional[str]):
-    last_exc = None
     with MODEL_INFER_LOCK:
-        for _attempt in range(3):
-            try:
-                return MODEL.transcribe(audio=audio_path, language=language)
-            except Exception as transcribe_exc:
-                last_exc = transcribe_exc
-                msg = str(transcribe_exc).lower()
-                if 'meta tensor' in msg or 'cannot copy out of meta tensor' in msg:
-                    _reload_model_cpu_fallback(str(transcribe_exc))
-                    continue
-                raise
-    if last_exc is not None:
-        raise last_exc
-    raise RuntimeError('Unknown ASR transcription failure')
+        import soundfile as sf
+        from scipy.signal import resample_poly
+
+        lang = _sensevoice_language(language)
+        samples, sample_rate = sf.read(audio_path, dtype='float32', always_2d=False)
+        samples = np.asarray(samples, dtype=np.float32)
+        if samples.ndim > 1:
+            samples = samples.mean(axis=1)
+        if sample_rate != STREAM_SAMPLE_RATE:
+            g = gcd(sample_rate, STREAM_SAMPLE_RATE)
+            samples = resample_poly(
+                samples,
+                STREAM_SAMPLE_RATE // g,
+                sample_rate // g,
+            ).astype(np.float32)
+        return MODEL(
+            samples,
+            language=lang,
+            textnorm='withitn',
+        )
+
+
+def _extract_text(value: Any) -> str:
+    if value is None:
+        return ''
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (list, tuple)):
+        parts = [_extract_text(v) for v in value]
+        return ' '.join(part for part in parts if part).strip()
+    if isinstance(value, dict):
+        for key in ('text', 'pred_text', 'sentence', 'content'):
+            if key in value:
+                text = _extract_text(value.get(key))
+                if text:
+                    return text
+        for key in ('value', 'result', 'res'):
+            if key in value:
+                text = _extract_text(value.get(key))
+                if text:
+                    return text
+        return ''
+
+    attr_text = getattr(value, 'text', None)
+    if isinstance(attr_text, str):
+        return attr_text
+
+    return ''
+
+
+def _extract_language(value: Any) -> str:
+    if value is None:
+        return ''
+    if isinstance(value, dict):
+        for key in ('language', 'lang', 'lid'):
+            lang = value.get(key)
+            if isinstance(lang, str) and lang:
+                return lang
+        for key in ('value', 'result', 'res'):
+            lang = _extract_language(value.get(key))
+            if lang:
+                return lang
+        return ''
+
+    attr_language = getattr(value, 'language', None)
+    if isinstance(attr_language, str):
+        return attr_language
+
+    return ''
+
+
+def _clean_transcript_text(text: str) -> str:
+    if not text:
+        return ''
+    # SenseVoice may prepend meta tags like <|zh|><|NEUTRAL|><|BGM|><|withitn|>.
+    text = re.sub(r'<\|[^|<>]+\|>', '', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
+
+def _normalize_transcribe_result(results: Any, language: Optional[str]) -> dict[str, str]:
+    if not results:
+        return {'text': '', 'language': language or ''}
+
+    first: Any = results[0] if isinstance(results, (list, tuple)) else results
+
+    text = _clean_transcript_text(_extract_text(first))
+    lang = _extract_language(first)
+
+    if not lang:
+        lang = _sensevoice_language(language)
+
+    return {
+        'text': text,
+        'language': lang,
+    }
 
 
 def _transcribe_pcm16le_bytes(pcm16le: bytes, language: Optional[str]):
@@ -183,14 +284,7 @@ def _transcribe_pcm16le_bytes(pcm16le: bytes, language: Optional[str]):
             wav_file.writeframes(pcm16le)
 
         results = _run_transcribe(wav_path, language)
-        if not results:
-            return {'text': '', 'language': language or ''}
-
-        result = results[0]
-        return {
-            'text': result.text or '',
-            'language': result.language or (language or ''),
-        }
+        return _normalize_transcribe_result(results, language)
     finally:
         if os.path.exists(wav_path):
             os.remove(wav_path)
@@ -287,14 +381,14 @@ def transcribe_file(req: TranscribeFileRequest):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    if not results:
+    normalized = _normalize_transcribe_result(results, req.language)
+    if not normalized['text'] and not normalized['language']:
         raise HTTPException(status_code=500, detail='Empty ASR result')
 
-    r = results[0]
     elapsed_ms = int((time.perf_counter() - started_at) * 1000)
     return {
-        'text': r.text,
-        'language': r.language,
+        'text': normalized['text'],
+        'language': normalized['language'],
         'elapsed_ms': elapsed_ms,
     }
 
@@ -333,22 +427,10 @@ async def stream_asr(websocket: WebSocket):
                 try:
                     _ensure_model_ready()
                 except Exception as exc:
-                    msg = str(exc).lower()
-                    if 'meta tensor' in msg or 'cannot copy out of meta tensor' in msg:
-                        try:
-                            _reload_model_cpu_fallback(str(exc))
-                            if STREAM_VAD_DEBUG:
-                                print(f'[asr-stream] recovered start error session={session_id}: {exc}')
-                        except Exception:
-                            await websocket.send_json(
-                                _build_stream_error(session_id, 'E_ASR_CONNECT', str(exc))
-                            )
-                            continue
-                    else:
-                        await websocket.send_json(
-                            _build_stream_error(session_id, 'E_ASR_CONNECT', str(exc))
-                        )
-                        continue
+                    await websocket.send_json(
+                        _build_stream_error(session_id, 'E_ASR_CONNECT', str(exc))
+                    )
+                    continue
 
                 sessions[session_id] = StreamingSession(
                     session_id=session_id,
@@ -411,12 +493,6 @@ async def stream_asr(websocket: WebSocket):
                         session.language,
                     )
                 except Exception as exc:
-                    msg = str(exc).lower()
-                    if 'meta tensor' in msg or 'cannot copy out of meta tensor' in msg:
-                        if STREAM_VAD_DEBUG:
-                            print(f'[asr-stream] recoverable partial error session={session_id}: {exc}')
-                        session.transcribing = False
-                        continue
                     if STREAM_VAD_DEBUG:
                         print(f'[asr-stream] skip partial due to error session={session_id}: {exc}')
                     session.transcribing = False
@@ -491,21 +567,6 @@ async def stream_asr(websocket: WebSocket):
                         session.language,
                     )
                 except Exception as exc:
-                    msg = str(exc).lower()
-                    if 'meta tensor' in msg or 'cannot copy out of meta tensor' in msg:
-                        if STREAM_VAD_DEBUG:
-                            print(f'[asr-stream] recoverable final error session={session_id}: {exc}')
-                        await websocket.send_json(
-                            {
-                                'type': 'final',
-                                'sessionId': session_id,
-                                'text': '',
-                                'isFinal': True,
-                                'language': session.language or '',
-                                'elapsedMs': 0,
-                            }
-                        )
-                        continue
                     if STREAM_VAD_DEBUG:
                         print(f'[asr-stream] fallback empty final due to error session={session_id}: {exc}')
                     await websocket.send_json(

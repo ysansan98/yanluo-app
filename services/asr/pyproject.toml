@@ -3,9 +3,11 @@ name = "yanluo-asr-service"
 version = "0.1.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+  "librosa==0.10.2",
   "fastapi==0.115.6",
   "uvicorn[standard]==0.30.6",
-  "qwen-asr==0.0.6",
+  "funasr-onnx==0.4.1",
+  "onnxruntime==1.23.2",
   "modelscope>=1.16.0",
   "setuptools<81",
 ]

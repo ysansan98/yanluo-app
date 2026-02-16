@@ -2,15 +2,27 @@ import type { BrowserWindow } from 'electron'
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 import process from 'node:process'
 import { app } from 'electron'
 import { buildPythonEnv, resolvePythonCmd } from './pythonEnv'
 
-const MODEL_ID = 'Qwen/Qwen3-ASR-0.6B'
-const MODEL_FOLDER = 'Qwen3-ASR-0.6B'
+const MODEL_ID = 'iic/SenseVoiceSmall-onnx'
+const MODEL_FOLDER = 'SenseVoiceSmall-onnx'
 
-export const getModelId = (): string => MODEL_ID
+export function getModelId(): string {
+  const envModelId = process.env.ASR_MODEL_NAME?.trim()
+  if (envModelId)
+    return envModelId
+  return MODEL_ID
+}
+
+function getModelFolder(): string {
+  const envModelDir = process.env.ASR_MODEL_DIR?.trim()
+  if (envModelDir)
+    return envModelDir
+  return MODEL_FOLDER
+}
 
 export function getModelsRoot(): string {
   const root = join(app.getPath('userData'), 'models')
@@ -20,7 +32,12 @@ export function getModelsRoot(): string {
   return root
 }
 
-export const getModelDir = (): string => join(getModelsRoot(), MODEL_FOLDER)
+export function getModelDir(): string {
+  const folderOrDir = getModelFolder()
+  if (isAbsolute(folderOrDir))
+    return folderOrDir
+  return join(getModelsRoot(), folderOrDir)
+}
 
 export function modelExists(): boolean {
   const dir = getModelDir()
@@ -28,10 +45,8 @@ export function modelExists(): boolean {
     return false
   try {
     const files = readdirSync(dir)
-    const hasConfig = files.includes('config.json')
-    const hasWeights
-      = files.includes('model.safetensors.index.json')
-        || files.some(name => name.endsWith('.safetensors') || name.endsWith('.bin'))
+    const hasConfig = files.includes('configuration.json') || files.includes('config.yaml')
+    const hasWeights = files.includes('model_quant.onnx') || files.includes('model.onnx')
     return hasConfig && hasWeights
   }
   catch {
@@ -56,7 +71,7 @@ export class ModelDownloader {
 
     this.proc = spawn(
       pythonCmd,
-      ['-m', 'modelscope.cli.cli', 'download', '--model', MODEL_ID, '--local_dir', modelDir],
+      ['-m', 'modelscope.cli.cli', 'download', '--model', getModelId(), '--local_dir', modelDir],
       {
         cwd: app.getAppPath(),
         env: buildPythonEnv(process.env),
