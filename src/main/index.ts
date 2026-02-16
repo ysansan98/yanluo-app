@@ -1,7 +1,7 @@
-import { join } from 'node:path'
+import type { BrowserWindow } from 'electron'
 import process from 'node:process'
-import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { app, BrowserWindow, screen, session, shell } from 'electron'
+import { electronApp, optimizer } from '@electron-toolkit/utils'
+import { app, screen, session } from 'electron'
 import icon from '../../resources/icon.png?asset'
 import { AsrService } from './asrService'
 import { ModelDownloader } from './modelManager'
@@ -15,45 +15,20 @@ import {
   VOICE_IPC,
   WsStreamingAsrClient,
 } from './voice'
+import { createMainWindow } from './windows/mainWindow'
+import { VoiceHudWindowController } from './windows/voiceHudWindow'
 
 const asrService = new AsrService()
 const modelDownloader = new ModelDownloader()
 let mainWindow: BrowserWindow | null = null
-let voiceHudWindow: BrowserWindow | null = null
-let voiceHudHideTimer: NodeJS.Timeout | null = null
-
-function clearVoiceHudHideTimer(): void {
-  if (!voiceHudHideTimer)
-    return
-  clearTimeout(voiceHudHideTimer)
-  voiceHudHideTimer = null
-}
-
-function ensureVoiceHudWindowVisible(): void {
-  if (!voiceHudWindow || voiceHudWindow.isDestroyed())
-    return
-  clearVoiceHudHideTimer()
-  if (!voiceHudWindow.isVisible()) {
-    voiceHudWindow.showInactive()
-  }
-}
-
-function scheduleVoiceHudWindowHide(delayMs: number): void {
-  if (!voiceHudWindow || voiceHudWindow.isDestroyed())
-    return
-  clearVoiceHudHideTimer()
-  voiceHudHideTimer = setTimeout(() => {
-    if (!voiceHudWindow || voiceHudWindow.isDestroyed())
-      return
-    voiceHudWindow.hide()
-  }, delayMs)
-}
+const voiceHudController = new VoiceHudWindowController({ icon })
 
 function broadcastVoiceUi(channel: string, payload?: unknown): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send(channel, payload)
   }
-  if (voiceHudWindow && !voiceHudWindow.isDestroyed()) {
+  const voiceHudWindow = voiceHudController.getWindow()
+  if (voiceHudWindow) {
     voiceHudWindow.webContents.send(channel, payload)
   }
 }
@@ -85,25 +60,25 @@ const sessionOrchestrator = new DefaultSessionOrchestrator({
   permissionChecker,
   enableHotkey: true,
   onUiShow: (payload) => {
-    ensureVoiceHudWindowVisible()
+    voiceHudController.ensureVisible()
     broadcastVoiceUi(VOICE_IPC.UI_SHOW, payload)
   },
   onUiUpdate: (payload) => {
-    ensureVoiceHudWindowVisible()
+    voiceHudController.ensureVisible()
     broadcastVoiceUi(VOICE_IPC.UI_UPDATE, payload)
   },
   onUiFinal: (payload) => {
-    ensureVoiceHudWindowVisible()
-    scheduleVoiceHudWindowHide(2200)
+    voiceHudController.ensureVisible()
+    voiceHudController.scheduleHide(2200)
     broadcastVoiceUi(VOICE_IPC.UI_FINAL, payload)
   },
   onUiHide: () => {
-    scheduleVoiceHudWindowHide(300)
+    voiceHudController.scheduleHide(300)
     broadcastVoiceUi(VOICE_IPC.UI_HIDE)
   },
   onUiToast: (payload) => {
-    ensureVoiceHudWindowVisible()
-    scheduleVoiceHudWindowHide(payload.type === 'error' ? 2200 : 1600)
+    voiceHudController.ensureVisible()
+    voiceHudController.scheduleHide(payload.type === 'error' ? 2200 : 1600)
     broadcastVoiceUi(VOICE_IPC.UI_TOAST, payload)
   },
   log: (message, extra) => {
@@ -127,100 +102,6 @@ function setupMediaPermissionHandlers(): void {
       return
     }
     callback(false)
-  })
-}
-
-function createWindow(): void {
-  // Create the browser window.
-  mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
-    show: false,
-    autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
-    },
-  })
-
-  mainWindow.on('ready-to-show', () => {
-    mainWindow?.show()
-  })
-
-  mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
-  })
-
-  // HMR for renderer base on electron-vite cli.
-  // Load the remote URL for development or the local html file for production.
-  if (is.dev && process.env.ELECTRON_RENDERER_URL) {
-    mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
-  }
-  else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
-  }
-}
-
-function updateVoiceHudWindowBounds(): void {
-  if (!voiceHudWindow || voiceHudWindow.isDestroyed())
-    return
-  const workArea = screen.getPrimaryDisplay().workArea
-  const width = 360
-  const height = 98
-  const x = Math.round(workArea.x + (workArea.width - width) / 2)
-  const y = Math.round(workArea.y + workArea.height - height - 88)
-  voiceHudWindow.setBounds({ x, y, width, height })
-}
-
-function createVoiceHudWindow(): void {
-  const workArea = screen.getPrimaryDisplay().workArea
-  const width = 360
-  const height = 98
-  const x = Math.round(workArea.x + (workArea.width - width) / 2)
-  const y = Math.round(workArea.y + workArea.height - height - 88)
-
-  voiceHudWindow = new BrowserWindow({
-    width,
-    height,
-    x,
-    y,
-    frame: false,
-    transparent: true,
-    show: false,
-    resizable: false,
-    movable: false,
-    minimizable: false,
-    maximizable: false,
-    closable: false,
-    focusable: false,
-    skipTaskbar: true,
-    hasShadow: false,
-    backgroundColor: '#00000000',
-    ...(process.platform === 'linux' ? { icon } : {}),
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
-    },
-  })
-
-  voiceHudWindow.setAlwaysOnTop(true, 'screen-saver')
-  voiceHudWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
-  voiceHudWindow.setIgnoreMouseEvents(true, { forward: true })
-
-  if (is.dev && process.env.ELECTRON_RENDERER_URL) {
-    voiceHudWindow.loadURL(`${process.env.ELECTRON_RENDERER_URL}#/voice-hud`)
-  }
-  else {
-    voiceHudWindow.loadFile(join(__dirname, '../renderer/index.html'), {
-      hash: '/voice-hud',
-    })
-  }
-
-  voiceHudWindow.on('closed', () => {
-    clearVoiceHudHideTimer()
-    voiceHudWindow = null
   })
 }
 
@@ -261,19 +142,19 @@ app.whenReady().then(() => {
     console.error('Failed to initialize voice session orchestrator:', err)
   })
 
-  createWindow()
-  createVoiceHudWindow()
-  screen.on('display-metrics-changed', updateVoiceHudWindowBounds)
-  screen.on('display-added', updateVoiceHudWindowBounds)
-  screen.on('display-removed', updateVoiceHudWindowBounds)
+  mainWindow = createMainWindow({ icon })
+  voiceHudController.create()
+  screen.on('display-metrics-changed', () => voiceHudController.updateBounds())
+  screen.on('display-added', () => voiceHudController.updateBounds())
+  screen.on('display-removed', () => voiceHudController.updateBounds())
 
   app.on('activate', () => {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if (!mainWindow || mainWindow.isDestroyed())
-      createWindow()
-    if (!voiceHudWindow || voiceHudWindow.isDestroyed())
-      createVoiceHudWindow()
+      mainWindow = createMainWindow({ icon })
+    if (!voiceHudController.getWindow())
+      voiceHudController.create()
   })
 })
 
@@ -287,7 +168,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
-  clearVoiceHudHideTimer()
+  voiceHudController.dispose()
   asrService.stop()
   sessionOrchestrator.dispose().catch((err) => {
     console.error('Failed to dispose voice session orchestrator:', err)
