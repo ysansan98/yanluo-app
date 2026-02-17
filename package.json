@@ -39,6 +39,7 @@
     "@tailwindcss/vite": "^4.1.18",
     "@types/node": "^22.19.1",
     "@vitejs/plugin-vue": "^6.0.2",
+    "code-inspector-plugin": "^1.4.2",
     "electron": "^39.2.6",
     "electron-builder": "^26.0.12",
     "electron-vite": "^5.0.0",

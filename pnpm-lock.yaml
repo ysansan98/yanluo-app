@@ -51,6 +51,9 @@ importers:
       '@vitejs/plugin-vue':
         specifier: ^6.0.2
         version: 6.0.4(vite@7.3.1(@types/node@22.19.11)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2))(vue@3.5.28(typescript@5.9.3))
+      code-inspector-plugin:
+        specifier: ^1.4.2
+        version: 1.4.2
       electron:
         specifier: ^39.2.6
         version: 39.6.0
@@ -242,6 +245,24 @@ packages:
 
   '@clack/prompts@1.0.1':
     resolution: {integrity: sha512-/42G73JkuYdyWZ6m8d/CJtBrGl1Hegyc7Fy78m5Ob+jF85TOUmLR5XLce/U3LxYAw0kJ8CT5aI99RIvPHcGp/Q==}
+
+  '@code-inspector/core@1.4.2':
+    resolution: {integrity: sha512-7OPkFtkfYaXhuTlwub2jT++rW7VggMMEeqsPIZGvHdXykwKAtzB8nnrj3N3uBT/mRoFfP627ShrVyRzCqyfr2w==}
+
+  '@code-inspector/esbuild@1.4.2':
+    resolution: {integrity: sha512-VouLJBEu82j7XcGHMPBt/VGt+bnA6JeWOMteFyj7buFbGs/ged2WlfUKUMOOx1ILoSn80Fb2EZ8MfSCrEFxnUQ==}
+
+  '@code-inspector/mako@1.4.2':
+    resolution: {integrity: sha512-0SGR4QruaMCkly/eqMYy+LR06pzyuQnGolrmgWgwGEm0pXs4XuT0lWoX/3zVUvUujmvj7Y/uN2mX1+yMfuORDw==}
+
+  '@code-inspector/turbopack@1.4.2':
+    resolution: {integrity: sha512-nT59NCsGaJ7vscJ8usQtzpREffMKfcyZnN2q9exJGwlFpq0KOLXFhvwWhMid56rF3LqP43Yj3ib+tE3fxbpzCQ==}
+
+  '@code-inspector/vite@1.4.2':
+    resolution: {integrity: sha512-wNshKosjULPpiFwU7KPpLnt/8gdcNnd5hyIdkKPpcNc7E6mk432U1g119PXL5cKtjhWk53jce6tuxExhDqZLVQ==}
+
+  '@code-inspector/webpack@1.4.2':
+    resolution: {integrity: sha512-edSygDoOUyBHI4LLMwmscLdSgg1+1E6OlG1T//NafaHw1eNyduAdRlNXpMPTJlbPYCglzvxus1yCab4WPWjqqQ==}
 
   '@develar/schema-utils@2.6.5':
     resolution: {integrity: sha512-0cp4PsWQ/9avqTVMCtZ+GirikIA36ikvjtHweU4/j8yLtgObI0+JUPhYFScgwlteveGB1rt3Cm8UhN04XayDig==}
@@ -1389,6 +1410,10 @@ packages:
   ccount@2.0.1:
     resolution: {integrity: sha512-eyrF0jiFpY+3drT6383f1qhkbGsLSifNAjA61IUjZjmLCWjItY6LB9ft9YhoDgwfmclB2zhu51Lc7+95b8NRAg==}
 
+  chalk@4.1.1:
+    resolution: {integrity: sha512-diHzdDKxcU+bAsUboHLPEDQiw0qEe0qd7SYUn3HgcFlWgbDcfLGswOHYeGrHKzG9z6UYf01d9VFMfZxPM1xZSg==}
+    engines: {node: '>=10'}
+
   chalk@4.1.2:
     resolution: {integrity: sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA==}
     engines: {node: '>=10'}
@@ -1443,6 +1468,9 @@ packages:
   clone@1.0.4:
     resolution: {integrity: sha512-JQHZ2QMW6l3aH/j6xCqQThY/9OH4D/9ls34cgkUBiEeocRTU04tHfKPBsUK1PqZCUQM7GiA0IIXJSuXHI64Kbg==}
     engines: {node: '>=0.8'}
+
+  code-inspector-plugin@1.4.2:
+    resolution: {integrity: sha512-vkrzXbCskYonLd1cLQNdmOOPE2ePThdnHjmrviQ/jAE6E1+ShpRE8clrLp1mvfcT0a/WyMVCW2gC1nAd8XPlZg==}
 
   color-convert@2.0.1:
     resolution: {integrity: sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==}
@@ -2357,6 +2385,9 @@ packages:
   keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
 
+  launch-ide@1.4.0:
+    resolution: {integrity: sha512-c2mcqZy7mNhzXiWoBFV0lDsEOfpSFGqqxKubPffhqcnv3GV0xpeGcHWLxYFm+jz1/5VAKp796QkyVV4++07eiw==}
+
   lazy-val@1.0.5:
     resolution: {integrity: sha512-0/BnGCCfyUMkBpeDgWihanIAF9JmZhHBgUhEqzvf+adhNGLoP6TaiI5oF8oyb3I45P+PcnrqihSf01M0l0G5+Q==}
 
@@ -2875,6 +2906,10 @@ packages:
 
   pnpm-workspace-yaml@1.5.0:
     resolution: {integrity: sha512-PxdyJuFvq5B0qm3s9PaH/xOtSxrcvpBRr+BblhucpWjs8c79d4b7/cXhyY4AyHOHCnqklCYZTjfl0bT/mFVTRw==}
+
+  portfinder@1.0.38:
+    resolution: {integrity: sha512-rEwq/ZHlJIKw++XtLAO8PPuOQA/zaPJOZJ37BVuN97nLpMJeuDVLVGRwbFoBgLudgdTMP2hdRJP++H+8QOA3vg==}
+    engines: {node: '>= 10.12'}
 
   postcss-selector-parser@7.1.1:
     resolution: {integrity: sha512-orRsuYpJVw8LdAwqqLykBj9ecS5/cRHlI5+nvTo8LcCKmzDmqVORXtOIYEEQuL9D4BxtA1lm5isAqzQZCoQ6Eg==}
@@ -3643,6 +3678,48 @@ snapshots:
       '@clack/core': 1.0.1
       picocolors: 1.1.1
       sisteransi: 1.0.5
+
+  '@code-inspector/core@1.4.2':
+    dependencies:
+      '@vue/compiler-dom': 3.5.28
+      chalk: 4.1.2
+      dotenv: 16.6.1
+      launch-ide: 1.4.0
+      portfinder: 1.0.38
+    transitivePeerDependencies:
+      - supports-color
+
+  '@code-inspector/esbuild@1.4.2':
+    dependencies:
+      '@code-inspector/core': 1.4.2
+    transitivePeerDependencies:
+      - supports-color
+
+  '@code-inspector/mako@1.4.2':
+    dependencies:
+      '@code-inspector/core': 1.4.2
+    transitivePeerDependencies:
+      - supports-color
+
+  '@code-inspector/turbopack@1.4.2':
+    dependencies:
+      '@code-inspector/core': 1.4.2
+      '@code-inspector/webpack': 1.4.2
+    transitivePeerDependencies:
+      - supports-color
+
+  '@code-inspector/vite@1.4.2':
+    dependencies:
+      '@code-inspector/core': 1.4.2
+      chalk: 4.1.1
+    transitivePeerDependencies:
+      - supports-color
+
+  '@code-inspector/webpack@1.4.2':
+    dependencies:
+      '@code-inspector/core': 1.4.2
+    transitivePeerDependencies:
+      - supports-color
 
   '@develar/schema-utils@2.6.5':
     dependencies:
@@ -4746,6 +4823,11 @@ snapshots:
 
   ccount@2.0.1: {}
 
+  chalk@4.1.1:
+    dependencies:
+      ansi-styles: 4.3.0
+      supports-color: 7.2.0
+
   chalk@4.1.2:
     dependencies:
       ansi-styles: 4.3.0
@@ -4792,6 +4874,18 @@ snapshots:
       mimic-response: 1.0.1
 
   clone@1.0.4: {}
+
+  code-inspector-plugin@1.4.2:
+    dependencies:
+      '@code-inspector/core': 1.4.2
+      '@code-inspector/esbuild': 1.4.2
+      '@code-inspector/mako': 1.4.2
+      '@code-inspector/turbopack': 1.4.2
+      '@code-inspector/vite': 1.4.2
+      '@code-inspector/webpack': 1.4.2
+      chalk: 4.1.1
+    transitivePeerDependencies:
+      - supports-color
 
   color-convert@2.0.1:
     dependencies:
@@ -5855,6 +5949,11 @@ snapshots:
     dependencies:
       json-buffer: 3.0.1
 
+  launch-ide@1.4.0:
+    dependencies:
+      chalk: 4.1.2
+      dotenv: 16.6.1
+
   lazy-val@1.0.5: {}
 
   levn@0.4.1:
@@ -6531,6 +6630,13 @@ snapshots:
   pnpm-workspace-yaml@1.5.0:
     dependencies:
       yaml: 2.8.2
+
+  portfinder@1.0.38:
+    dependencies:
+      async: 3.2.6
+      debug: 4.4.3
+    transitivePeerDependencies:
+      - supports-color
 
   postcss-selector-parser@7.1.1:
     dependencies:
