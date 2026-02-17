@@ -1,1 +1,64 @@
 @import "tailwindcss";
+
+@theme {
+  --font-yl-sans: 'IBM Plex Sans', 'Avenir Next', sans-serif;
+  --font-yl-mono: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+
+  --color-yl-ink-900: #1f2430;
+  --color-yl-ink-700: #2a354f;
+  --color-yl-ink-650: #2f3f64;
+  --color-yl-ink-600: #354a74;
+  --color-yl-ink-590: #2f3442;
+  --color-yl-ink-580: #32384a;
+  --color-yl-ink-550: #343742;
+  --color-yl-ink-500: #3c4558;
+  --color-yl-ink-450: #4a4a52;
+
+  --color-yl-brand-600: #475f8f;
+  --color-yl-brand-500: #5f74a2;
+  --color-yl-brand-100: #e9edf8;
+
+  --color-yl-accent-600: #c85d3a;
+
+  --color-yl-paper-500: #efe8df;
+  --color-yl-paper-400: #f6efe2;
+  --color-yl-paper-300: #f8f4ee;
+  --color-yl-paper-250: #f8f4ec;
+  --color-yl-paper-150: #faf7f1;
+  --color-yl-paper-100: #fbf7ef;
+
+  --color-yl-line-400: #cfc3ae;
+  --color-yl-line-360: #d2c5b3;
+  --color-yl-line-350: #d4c8b6;
+  --color-yl-line-300: #d9d2c3;
+  --color-yl-line-280: #d7cfbe;
+  --color-yl-line-260: #dbd1bf;
+  --color-yl-line-250: #dfd6c6;
+  --color-yl-line-230: #ddd5c5;
+  --color-yl-line-200: #e3dbc9;
+  --color-yl-line-180: #e4ddcf;
+
+  --color-yl-muted-560: #5d5850;
+  --color-yl-muted-530: #6e665d;
+  --color-yl-muted-520: #6f685c;
+  --color-yl-muted-500: #6f6a60;
+  --color-yl-muted-450: #6a6f7d;
+  --color-yl-muted-430: #756f63;
+  --color-yl-muted-420: #777063;
+  --color-yl-muted-410: #767062;
+  --color-yl-muted-400: #7a7266;
+  --color-yl-muted-390: #7b7468;
+  --color-yl-muted-380: #7b7467;
+
+  --color-yl-stat-1-from: #f8efe4;
+  --color-yl-stat-1-to: #efe0cc;
+  --color-yl-stat-2-from: #f5f0e8;
+  --color-yl-stat-2-to: #ebdfcd;
+  --color-yl-stat-3-from: #edf2f9;
+  --color-yl-stat-3-to: #dde6f6;
+  --color-yl-stat-4-from: #f6ece8;
+  --color-yl-stat-4-to: #efd9d0;
+
+  --shadow-yl-panel: 0 14px 30px rgba(36, 40, 52, 0.12);
+  --shadow-yl-card: 0 14px 30px rgba(28, 32, 44, 0.1);
+}

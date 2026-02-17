@@ -1,274 +1,243 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import type { HistoryEntry, MenuItem, MenuKey, TranscriptSource } from './types/ui'
+import { computed, onMounted, ref } from 'vue'
+import AboutPanel from './components/AboutPanel.vue'
+import AppSidebar from './components/AppSidebar.vue'
+import ComingSoonPanel from './components/ComingSoonPanel.vue'
+import HomePage from './components/HomePage.vue'
+import SettingsPanel from './components/SettingsPanel.vue'
+import WorkbenchPage from './components/WorkbenchPage.vue'
 import { useAsrPage } from './composables/useAsrPage'
 
+const HISTORY_STORAGE_KEY = 'yanluo:asr-history:v1'
+const GLOBAL_SHORTCUT = 'Ctrl + Z'
+
+const menuItems: MenuItem[] = [
+  { key: 'home', label: '首页', hint: '统计与最近历史' },
+  { key: 'workbench', label: '识别工作台', hint: '录音与文件识别' },
+  { key: 'polish', label: '润色指令', hint: '先保留入口' },
+  { key: 'provider', label: 'AI 服务商配置', hint: '先保留入口' },
+  { key: 'settings', label: '设置', hint: '快捷键 / 麦克风 / 权限' },
+  { key: 'about', label: '关于', hint: '版本与反馈入口' },
+]
+
+const activeMenu = ref<MenuKey>('home')
+const historyEntries = ref<HistoryEntry[]>([])
 const resultCardRef = ref<HTMLElement | null>(null)
+
+function persistHistory(): void {
+  localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(historyEntries.value))
+}
+
+function restoreHistory(): void {
+  const raw = localStorage.getItem(HISTORY_STORAGE_KEY)
+  if (!raw)
+    return
+
+  try {
+    const parsed = JSON.parse(raw) as HistoryEntry[]
+    historyEntries.value = Array.isArray(parsed) ? parsed : []
+  }
+  catch {
+    historyEntries.value = []
+  }
+}
+
+function addHistory(payload: {
+  source: TranscriptSource
+  text: string
+  language?: string
+  elapsedMs: number
+  filePath?: string
+}): void {
+  const text = payload.text.trim()
+  if (!text)
+    return
+
+  const entry: HistoryEntry = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    source: payload.source,
+    text,
+    textLength: text.length,
+    language: payload.language?.trim() || 'auto',
+    elapsedMs: Number.isFinite(payload.elapsedMs) ? Math.max(0, Math.round(payload.elapsedMs)) : 0,
+    createdAt: Date.now(),
+    filePath: payload.filePath,
+  }
+
+  historyEntries.value = [entry, ...historyEntries.value].slice(0, 50)
+  persistHistory()
+}
+
+function clearHistory(): void {
+  historyEntries.value = []
+  persistHistory()
+}
+
+function isToday(timestamp: number): boolean {
+  const d = new Date(timestamp)
+  const now = new Date()
+  return d.getFullYear() === now.getFullYear()
+    && d.getMonth() === now.getMonth()
+    && d.getDate() === now.getDate()
+}
+
+function formatDuration(ms: number): string {
+  const totalSeconds = Math.max(0, Math.round(ms / 1000))
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+
+  if (hours > 0)
+    return `${hours}h ${minutes}m ${seconds}s`
+  if (minutes > 0)
+    return `${minutes}m ${seconds}s`
+  return `${seconds}s`
+}
+
+function formatTime(timestamp: number): string {
+  return new Date(timestamp).toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function sourceLabel(source: TranscriptSource): string {
+  return source === 'live' ? '实时识别' : '文件识别'
+}
+
 const {
   applyContinueWindowMs,
   checkHealth,
   continueWindowMsInput,
-  downloadLogs,
   filePath,
   language,
-  lastResponseJson,
   liveElapsedMs,
   liveFinalText,
   liveIsRecording,
   livePartialText,
   liveStatus,
-  modelInfo,
   pickAudioFile,
-  refreshModelInfo,
-  resultLanguage,
-  resultText,
-  startDownload,
   status,
   toggleLiveRecording,
   transcribe,
-  transcriptChars,
-  transcriptElapsedMs,
-} = useAsrPage({ resultCardRef })
+} = useAsrPage({
+  resultCardRef,
+  onTranscriptCreated: addHistory,
+})
+
+const todayUsageCount = computed(() => historyEntries.value.filter(item => isToday(item.createdAt)).length)
+const todayChars = computed(() => historyEntries.value
+  .filter(item => isToday(item.createdAt))
+  .reduce((sum, item) => sum + item.textLength, 0))
+const todayAudioDurationMs = computed(() => historyEntries.value
+  .filter(item => isToday(item.createdAt))
+  .reduce((sum, item) => sum + item.elapsedMs, 0))
+const totalChars = computed(() => historyEntries.value.reduce((sum, item) => sum + item.textLength, 0))
+const totalAudioDurationMs = computed(() => historyEntries.value.reduce((sum, item) => sum + item.elapsedMs, 0))
+const recentHistory = computed(() => historyEntries.value.slice(0, 8))
+
+const statCards = computed(() => [
+  { label: '今日使用次数', value: String(todayUsageCount.value), tone: 'from-yl-stat-1-from to-yl-stat-1-to' },
+  { label: '今日识别字数', value: String(todayChars.value), tone: 'from-yl-stat-2-from to-yl-stat-2-to' },
+  { label: '累计识别字数', value: String(totalChars.value), tone: 'from-yl-stat-2-from to-yl-stat-2-to' },
+  { label: '今日音频时长', value: formatDuration(todayAudioDurationMs.value), tone: 'from-yl-stat-3-from to-yl-stat-3-to' },
+  { label: '累计音频时长', value: formatDuration(totalAudioDurationMs.value), tone: 'from-yl-stat-4-from to-yl-stat-4-to' },
+])
+
+const electronVersion = computed(() => window.electron?.process?.versions?.electron ?? '-')
+const chromeVersion = computed(() => window.electron?.process?.versions?.chrome ?? '-')
+const nodeVersion = computed(() => window.electron?.process?.versions?.node ?? '-')
+
+const micPermissionHint = computed(() => {
+  if (liveStatus.value.toLowerCase().includes('permission'))
+    return liveStatus.value
+  return '待接入检测'
+})
+
+const accessibilityPermissionHint = computed(() => {
+  if (liveStatus.value.toLowerCase().includes('accessibility'))
+    return liveStatus.value
+  return '待接入检测'
+})
+
+onMounted(() => {
+  restoreHistory()
+})
 </script>
 
 <template>
-  <div
-    class="min-h-screen overflow-y-auto bg-[radial-gradient(circle_at_20%_20%,#f5efe6,#f2f2f8_35%,#e8eff4_70%)] px-6 pt-9 pb-15 text-[#1b1b1b] font-['IBM_Plex_Sans','Avenir_Next',sans-serif]"
-  >
-    <header class="mx-auto mb-6 max-w-225">
-      <div class="text-3xl font-bold tracking-[0.5px]">
-        Yanluo ASR
-      </div>
-      <div class="mt-1.5 text-[#4a4a4a]">
-        Offline speech-to-text (file first), with online polishing later.
-      </div>
-    </header>
+  <div class="min-h-screen bg-[radial-gradient(circle_at_12%_6%,var(--color-yl-paper-400)_0,var(--color-yl-paper-300)_38%,var(--color-yl-paper-500)_100%)] px-6 pt-12 pb-5 text-yl-ink-900 font-yl-sans">
+    <div class="fixed inset-x-0 top-0 z-[60] h-11 bg-transparent [-webkit-app-region:drag]" />
+    <div class="pointer-events-none fixed inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_85%_10%,rgba(95,116,162,0.2),rgba(95,116,162,0))]" />
+    <div class="pointer-events-none fixed inset-x-0 bottom-0 h-56 bg-[radial-gradient(circle_at_10%_90%,rgba(200,93,58,0.14),rgba(200,93,58,0))]" />
+    <div class="relative mx-auto max-w-[1640px] space-y-4">
+      <AppSidebar :menu-items="menuItems" :active-menu="activeMenu" @update:active-menu="activeMenu = $event" />
 
-    <section
-      class="mx-auto mb-4.5 max-w-225 rounded-2xl border border-[#1b4dff]/25 bg-white/90 p-5 shadow-[0_12px_30px_rgba(20,20,40,0.08)]"
-    >
-      <div class="mb-3 text-base font-bold text-[#1637b8]">
-        Live Dictation
-      </div>
-      <div
-        class="mb-3 flex items-center justify-start gap-3 max-[720px]:items-stretch max-[720px]:flex-col"
-      >
-        <button
-          class="cursor-pointer rounded-full border border-[#1b4dff] bg-[#1b4dff] px-4.5 py-2 font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
-          @click="toggleLiveRecording"
-        >
-          {{ liveIsRecording ? "Stop Recording" : "Start Recording" }}
-        </button>
-      </div>
-      <div
-        class="mb-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col"
-      >
-        <label class="w-40 font-semibold text-[#2f2f2f] max-[720px]:w-auto">Continue window (ms)</label>
-        <input
-          v-model="continueWindowMsInput"
-          class="w-40 rounded-lg border border-[#d3d3d9] bg-white px-2.5 py-2"
-          placeholder="2000"
-        >
-        <button
-          class="cursor-pointer rounded-full border border-[#1b4dff] bg-transparent px-3.5 py-2 text-sm font-semibold text-[#1b4dff] transition"
-          @click="applyContinueWindowMs"
-        >
-          Apply
-        </button>
-      </div>
-      <div class="mt-1.5 min-h-4.5 text-[#555]">
-        Status: {{ liveStatus }}
-      </div>
-      <div class="mt-1.5 min-h-4.5 text-[#555]">
-        Live elapsed: {{ liveElapsedMs }} ms
-      </div>
-      <div class="mb-2 mt-3 font-semibold text-[#2f2f2f]">
-        Partial
-      </div>
-      <div
-        class="min-h-14 w-full wrap-break-word rounded-xl border border-[#d5d5db] bg-white p-3 text-[13px] leading-6 whitespace-pre-wrap text-[#111] font-['IBM_Plex_Mono',monospace]"
-      >
-        {{ livePartialText || "-" }}
-      </div>
-      <div class="mb-2 mt-3 font-semibold text-[#2f2f2f]">
-        Final
-      </div>
-      <div
-        class="min-h-14 w-full wrap-break-word rounded-xl border border-[#d5d5db] bg-white p-3 text-[13px] leading-6 whitespace-pre-wrap text-[#111] font-['IBM_Plex_Mono',monospace]"
-      >
-        {{ liveFinalText || "-" }}
-      </div>
-    </section>
+      <main class="space-y-4">
+        <HomePage
+          v-if="activeMenu === 'home'"
+          :stat-cards="statCards"
+          :recent-history="recentHistory"
+          :format-duration="formatDuration"
+          :format-time="formatTime"
+          :source-label="sourceLabel"
+          @clear-history="clearHistory"
+        />
 
-    <section
-      class="mx-auto mb-4.5 max-w-225 rounded-2xl border border-black/10 bg-white/85 p-5 shadow-[0_12px_30px_rgba(20,20,40,0.08)]"
-    >
-      <div
-        class="mb-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col"
-      >
-        <label class="w-40 font-semibold text-[#2f2f2f] max-[720px]:w-auto">Model</label>
-        <div
-          class="flex-1 rounded-lg bg-[#f7f7fb] px-2.5 py-2 text-xs text-[#3e3e3e] font-['JetBrains_Mono',monospace]"
-        >
-          {{ modelInfo?.modelId || "-" }}
-        </div>
-      </div>
-      <div
-        class="mb-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col"
-      >
-        <label class="w-40 font-semibold text-[#2f2f2f] max-[720px]:w-auto">Local path</label>
-        <div
-          class="flex-1 rounded-lg bg-[#f7f7fb] px-2.5 py-2 text-xs text-[#3e3e3e] font-['JetBrains_Mono',monospace]"
-        >
-          {{ modelInfo?.modelDir || "-" }}
-        </div>
-      </div>
-      <div
-        class="mb-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col"
-      >
-        <label class="w-40 font-semibold text-[#2f2f2f] max-[720px]:w-auto">Status</label>
-        <div
-          class="flex-1 rounded-lg bg-[#f7f7fb] px-2.5 py-2 text-xs text-[#3e3e3e] font-['JetBrains_Mono',monospace]"
-        >
-          {{ modelInfo?.exists ? "Ready" : "Not downloaded" }}
-        </div>
-      </div>
-      <div
-        class="mb-3 flex items-center justify-start gap-3 max-[720px]:items-stretch max-[720px]:flex-col"
-      >
-        <button
-          class="cursor-pointer rounded-full border border-[#1b4dff] bg-[#1b4dff] px-4.5 py-2 font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
-          @click="startDownload"
-        >
-          Download (ModelScope)
-        </button>
-        <button
-          class="cursor-pointer rounded-full border border-[#1b4dff] bg-transparent px-4.5 py-2 font-semibold text-[#1b4dff] transition disabled:cursor-not-allowed disabled:opacity-50"
-          @click="refreshModelInfo"
-        >
-          Refresh
-        </button>
-      </div>
-      <textarea
-        class="min-h-30 w-full rounded-xl border border-[#d5d5db] bg-[#f9f9fc] p-2.5 text-[11px] text-[#2f2f2f] font-['JetBrains_Mono',monospace]"
-        readonly
-        :value="downloadLogs"
-        placeholder="Download logs"
-      />
-    </section>
+        <WorkbenchPage
+          v-else-if="activeMenu === 'workbench'"
+          :live-status="liveStatus"
+          :live-elapsed-ms="liveElapsedMs"
+          :live-is-recording="liveIsRecording"
+          :live-partial-text="livePartialText"
+          :live-final-text="liveFinalText"
+          :file-path="filePath"
+          :language="language"
+          :status="status"
+          :format-duration="formatDuration"
+          @update:file-path="filePath = $event"
+          @update:language="language = $event"
+          @toggle-live-recording="toggleLiveRecording"
+          @pick-audio-file="pickAudioFile"
+          @transcribe="transcribe"
+          @check-health="checkHealth"
+        />
 
-    <section
-      class="mx-auto mb-4.5 max-w-225 rounded-2xl border border-black/10 bg-white/85 p-5 shadow-[0_12px_30px_rgba(20,20,40,0.08)]"
-    >
-      <div
-        class="mb-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col"
-      >
-        <label class="w-40 font-semibold text-[#2f2f2f] max-[720px]:w-auto">Audio file</label>
-        <button
-          class="cursor-pointer rounded-full border border-[#1b4dff] bg-[#1b4dff] px-4.5 py-2 font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
-          @click="pickAudioFile"
-        >
-          Choose Audio File
-        </button>
-      </div>
-      <div
-        class="mb-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col"
-      >
-        <label class="w-40 font-semibold text-[#2f2f2f] max-[720px]:w-auto">Path</label>
-        <input
-          v-model="filePath"
-          class="flex-1 rounded-lg border border-[#d3d3d9] bg-white px-2.5 py-2"
-          placeholder="/absolute/path/to/audio.wav"
-        >
-      </div>
-      <div
-        class="mb-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col"
-      >
-        <label class="w-40 font-semibold text-[#2f2f2f] max-[720px]:w-auto">Language (optional)</label>
-        <input
-          v-model="language"
-          class="flex-1 rounded-lg border border-[#d3d3d9] bg-white px-2.5 py-2"
-          placeholder="Chinese / English / French ..."
-        >
-      </div>
-      <div
-        class="mb-3 flex items-center justify-start gap-3 max-[720px]:items-stretch max-[720px]:flex-col"
-      >
-        <button
-          class="cursor-pointer rounded-full border border-[#1b4dff] bg-[#1b4dff] px-4.5 py-2 font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
-          :disabled="!filePath"
-          @click="transcribe"
-        >
-          Transcribe
-        </button>
-        <button
-          class="cursor-pointer rounded-full border border-[#1b4dff] bg-transparent px-4.5 py-2 font-semibold text-[#1b4dff] transition disabled:cursor-not-allowed disabled:opacity-50"
-          @click="checkHealth"
-        >
-          Health Check
-        </button>
-      </div>
-      <div class="mt-1.5 min-h-4.5 text-[#555]">
-        {{ status }}
-      </div>
-      <div class="mt-1.5 min-h-4.5 text-[#555]">
-        Chars: {{ transcriptChars }}
-      </div>
-      <div class="mt-1.5 min-h-4.5 text-[#555]">
-        Elapsed: {{ transcriptElapsedMs }} ms ({{
-          (transcriptElapsedMs / 1000).toFixed(2)
-        }}
-        s)
-      </div>
-    </section>
+        <ComingSoonPanel
+          v-else-if="activeMenu === 'polish'"
+          title="润色指令"
+          description="功能尚未接入，当前仅保留菜单入口。"
+          note="规划建议：支持 Prompt 模板库、变量插值、快捷调用和执行历史。"
+        />
 
-    <section
-      ref="resultCardRef"
-      class="mx-auto mb-4.5 max-w-225 rounded-2xl border border-[#1b4dff]/25 bg-white/85 p-5 shadow-[0_12px_30px_rgba(20,20,40,0.08)]"
-    >
-      <div class="mb-3 text-base font-bold text-[#1637b8]">
-        Recognition Result
-      </div>
-      <div
-        class="mb-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col"
-      >
-        <label class="w-40 font-semibold text-[#2f2f2f] max-[720px]:w-auto">Detected language</label>
-        <div
-          class="flex-1 rounded-lg bg-[#f7f7fb] px-2.5 py-2 text-xs text-[#3e3e3e] font-['JetBrains_Mono',monospace]"
-        >
-          {{ resultLanguage || "-" }}
-        </div>
-      </div>
-      <div
-        class="mb-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col"
-      >
-        <label class="w-40 font-semibold text-[#2f2f2f] max-[720px]:w-auto">Transcript (Preview)</label>
-      </div>
-      <div
-        class="min-h-24 w-full wrap-break-word rounded-xl border border-[#d5d5db] bg-white p-3 text-[13px] leading-6 whitespace-pre-wrap text-[#111] font-['IBM_Plex_Mono',monospace]"
-      >
-        {{ resultText || "No transcript yet" }}
-      </div>
-      <div
-        class="mb-3 mt-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col"
-      >
-        <label class="w-40 font-semibold text-[#2f2f2f] max-[720px]:w-auto">Transcript (Editable)</label>
-      </div>
-      <textarea
-        v-model="resultText"
-        class="min-h-55 w-full rounded-xl border border-[#d5d5db] bg-white p-3 text-[13px] text-[#111] font-['IBM_Plex_Mono',monospace]"
-        placeholder="Transcript will appear here"
-      />
-      <div
-        class="mb-3 mt-3 flex items-center gap-3 max-[720px]:items-stretch max-[720px]:flex-col"
-      >
-        <label class="w-40 font-semibold text-[#2f2f2f] max-[720px]:w-auto">Raw Response</label>
-      </div>
-      <textarea
-        class="min-h-30 w-full rounded-xl border border-[#d5d5db] bg-[#f9f9fc] p-2.5 text-[11px] text-[#2f2f2f] font-['JetBrains_Mono',monospace]"
-        readonly
-        :value="lastResponseJson"
-        placeholder="Raw ASR JSON response"
-      />
-    </section>
+        <ComingSoonPanel
+          v-else-if="activeMenu === 'provider'"
+          title="AI 服务商配置"
+          description="功能尚未接入，当前仅保留入口。"
+          note="规划建议：配置 API Key、模型、超时、重试与回退策略。"
+        />
+
+        <SettingsPanel
+          v-else-if="activeMenu === 'settings'"
+          :global-shortcut="GLOBAL_SHORTCUT"
+          :mic-permission-hint="micPermissionHint"
+          :accessibility-permission-hint="accessibilityPermissionHint"
+          :live-status="liveStatus"
+          :continue-window-ms-input="continueWindowMsInput"
+          @update:continue-window-ms-input="continueWindowMsInput = $event"
+          @apply-continue-window-ms="applyContinueWindowMs"
+        />
+
+        <AboutPanel
+          v-else
+          :electron-version="electronVersion"
+          :chrome-version="chromeVersion"
+          :node-version="nodeVersion"
+        />
+      </main>
+    </div>
   </div>
 </template>

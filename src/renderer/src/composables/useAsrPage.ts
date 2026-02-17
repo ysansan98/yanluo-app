@@ -4,6 +4,13 @@ import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 
 interface UseAsrPageOptions {
   resultCardRef: Ref<HTMLElement | null>
+  onTranscriptCreated?: (payload: {
+    source: 'file' | 'live'
+    text: string
+    language?: string
+    elapsedMs: number
+    filePath?: string
+  }) => void
 }
 
 export function useAsrPage(options: UseAsrPageOptions) {
@@ -80,6 +87,13 @@ export function useAsrPage(options: UseAsrPageOptions) {
         = transcriptChars.value > 0
           ? `Done (chars=${transcriptChars.value}, elapsed=${transcriptElapsedMs.value}ms)`
           : 'Done (empty transcript)'
+      options.onTranscriptCreated?.({
+        source: 'file',
+        text: resultText.value,
+        language: resultLanguage.value,
+        elapsedMs: transcriptElapsedMs.value,
+        filePath: filePath.value,
+      })
       await nextTick()
       options.resultCardRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
@@ -171,6 +185,11 @@ export function useAsrPage(options: UseAsrPageOptions) {
         liveStatus.value = payload.mode === 'pasted' ? 'Done (pasted)' : 'Done (copied to clipboard)'
         liveFinalText.value = payload.finalText
         resultText.value = payload.finalText
+        options.onTranscriptCreated?.({
+          source: 'live',
+          text: payload.finalText,
+          elapsedMs: liveElapsedMs.value,
+        })
       }),
     )
     voiceUnsubscribers.push(

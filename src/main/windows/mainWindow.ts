@@ -14,6 +14,11 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
     height: 670,
     show: false,
     autoHideMenuBar: true,
+    ...(process.platform === 'darwin'
+      ? {
+          titleBarStyle: 'hiddenInset',
+        }
+      : {}),
     ...(process.platform === 'linux' ? { icon: options.icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
