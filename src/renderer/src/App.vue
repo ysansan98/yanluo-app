@@ -8,6 +8,7 @@ import HomePage from './components/HomePage.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import WorkbenchPage from './components/WorkbenchPage.vue'
 import { useAsrPage } from './composables/useAsrPage'
+import { formatDuration } from './utils'
 
 const GLOBAL_SHORTCUT = 'Ctrl + Z'
 
@@ -69,31 +70,7 @@ function isToday(timestamp: number): boolean {
     && d.getDate() === now.getDate()
 }
 
-function formatDuration(ms: number): string {
-  const totalSeconds = Math.max(0, Math.round(ms / 1000))
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
-
-  if (hours > 0)
-    return `${hours}h ${minutes}m ${seconds}s`
-  if (minutes > 0)
-    return `${minutes}m ${seconds}s`
-  return `${seconds}s`
-}
-
-function formatTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-function sourceLabel(source: TranscriptSource): string {
-  return source === 'live' ? '实时识别' : '文件识别'
-}
+// 工具函数已从 composables/useFormatters.ts 导入，不再在此定义
 
 const {
   applyContinueWindowMs,
@@ -172,9 +149,6 @@ onMounted(() => {
           v-if="activeMenu === 'home'"
           :stat-cards="statCards"
           :recent-history="recentHistory"
-          :format-duration="formatDuration"
-          :format-time="formatTime"
-          :source-label="sourceLabel"
           @clear-history="clearHistory"
         />
 
@@ -188,7 +162,6 @@ onMounted(() => {
           :file-path="filePath"
           :language="language"
           :status="status"
-          :format-duration="formatDuration"
           @update:file-path="filePath = $event"
           @update:language="language = $event"
           @toggle-live-recording="toggleLiveRecording"

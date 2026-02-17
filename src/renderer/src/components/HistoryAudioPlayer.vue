@@ -27,7 +27,6 @@ function formatTime(seconds: number): string {
   return `${minutes}:${String(remain).padStart(2, '0')}`
 }
 
-const progressMax = computed(() => Math.max(0, duration.value))
 const progressValue = computed(() => (seeking.value ? seekValue.value : currentTime.value))
 const progressPercent = computed(() => {
   if (duration.value <= 0)
@@ -84,7 +83,8 @@ function onEnded(): void {
 
 function seekFromPosition(clientX: number): void {
   const container = progressContainerRef.value
-  if (!container || duration.value <= 0) return
+  if (!container || duration.value <= 0)
+    return
   const rect = container.getBoundingClientRect()
   const relative = (clientX - rect.left) / rect.width
   const clamped = Math.min(1, Math.max(0, relative))
@@ -95,38 +95,6 @@ function seekFromPosition(clientX: number): void {
   hoverTime.value = newTime
   hoverLeft.value = clamped * 100
   showHoverTime.value = true
-}
-
-function onSeekStart(value: string | number): void {
-  let parsed: number
-  if (typeof value === 'string') {
-    parsed = Number.parseFloat(value)
-  } else {
-    parsed = value
-  }
-  seeking.value = true
-  seekValue.value = Number.isFinite(parsed) ? parsed : 0
-  hoverTime.value = seekValue.value
-  if (duration.value > 0) {
-    hoverLeft.value = Math.min(100, Math.max(0, (seekValue.value / duration.value) * 100))
-  }
-  showHoverTime.value = true
-}
-
-function onSeekCommit(value: string | number): void {
-  const audio = audioRef.value
-  let parsed: number
-  if (typeof value === 'string') {
-    parsed = Number.parseFloat(value)
-  } else {
-    parsed = value
-  }
-  const next = Number.isFinite(parsed) ? parsed : 0
-  seeking.value = false
-  currentTime.value = next
-  if (audio) {
-    audio.currentTime = next
-  }
 }
 
 function onProgressMouseDown(event: MouseEvent): void {
@@ -278,7 +246,7 @@ onBeforeUnmount(() => {
         <div
           class="pointer-events-none absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-yl-accent-600 opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
           :style="{ left: `calc(${progressPercent}% - 6px)` }"
-          :class="{ 'opacity-100': seeking.value }"
+          :class="{ 'opacity-100': seeking }"
         />
       </div>
     </div>

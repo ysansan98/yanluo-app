@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDuration } from '../utils'
 import AppActionButton from './AppActionButton.vue'
 
 interface Props {
@@ -10,7 +11,6 @@ interface Props {
   filePath: string
   language: string
   status: string
-  formatDuration: (ms: number) => string
 }
 
 const props = defineProps<Props>()
@@ -40,7 +40,7 @@ const emit = defineEmits<{
       <AppActionButton @click="emit('toggleLiveRecording')">
         {{ props.liveIsRecording ? '停止录音' : '开始录音' }}
       </AppActionButton>
-      <span class="text-xs text-yl-muted-380">会话时长：{{ props.formatDuration(props.liveElapsedMs) }}</span>
+      <span class="text-xs text-yl-muted-380">会话时长：{{ formatDuration(props.liveElapsedMs) }}</span>
       <span class="text-xs text-yl-muted-380">状态：{{ props.liveStatus || 'Idle' }}</span>
     </div>
 
