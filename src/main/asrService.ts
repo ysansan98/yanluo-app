@@ -26,8 +26,8 @@ export class AsrService {
 
     const pythonCmd = resolvePythonCmd()
     const asrServiceDir = getAsrServiceDir()
-    const modelName = process.env.ASR_MODEL_NAME || getModelId()
-    const modelDir = process.env.ASR_MODEL_DIR || getModelDir()
+    const modelName = getModelId()
+    const modelDir = getModelDir()
     const allowDownload = process.env.ASR_ALLOW_DOWNLOAD || '0'
 
     this.proc = spawn(

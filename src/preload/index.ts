@@ -19,6 +19,21 @@ const api = {
       ipcRenderer.invoke('asr:transcribeFile', path, language),
     pickAudioFile: () => ipcRenderer.invoke('asr:pickAudioFile'),
   },
+  history: {
+    create: (payload: {
+      source: 'file' | 'live'
+      entryType: 'asr_only' | 'polish'
+      commandName?: string | null
+      text: string
+      language?: string
+      elapsedMs?: number
+      audioPath?: string | null
+      triggeredAt?: number
+    }) => ipcRenderer.invoke('history:create', payload),
+    list: (payload?: { limit?: number }) => ipcRenderer.invoke('history:list', payload),
+    clear: () => ipcRenderer.invoke('history:clear'),
+    readAudio: (payload: { path: string }) => ipcRenderer.invoke('history:readAudio', payload),
+  },
   voice: createVoiceBridge(),
 }
 

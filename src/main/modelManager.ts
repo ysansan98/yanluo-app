@@ -5,23 +5,15 @@ import { existsSync, mkdirSync, readdirSync } from 'node:fs'
 import { isAbsolute, join } from 'node:path'
 import process from 'node:process'
 import { app } from 'electron'
+import { ASR_MODEL_DIR_NAME, ASR_MODEL_ID } from './config/asrDefaults'
 import { buildPythonEnv, resolvePythonCmd } from './pythonEnv'
 
-const MODEL_ID = 'iic/SenseVoiceSmall-onnx'
-const MODEL_FOLDER = 'SenseVoiceSmall-onnx'
-
 export function getModelId(): string {
-  const envModelId = process.env.ASR_MODEL_NAME?.trim()
-  if (envModelId)
-    return envModelId
-  return MODEL_ID
+  return ASR_MODEL_ID
 }
 
 function getModelFolder(): string {
-  const envModelDir = process.env.ASR_MODEL_DIR?.trim()
-  if (envModelDir)
-    return envModelDir
-  return MODEL_FOLDER
+  return ASR_MODEL_DIR_NAME
 }
 
 export function getModelsRoot(): string {

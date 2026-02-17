@@ -1,19 +1,25 @@
 import type { BrowserWindow } from 'electron'
 import type { AsrService } from './asrService'
+import type { HistoryStore } from './historyStore'
 import type { ModelDownloader } from './modelManager'
+import type { SettingsStore } from './settingsStore'
 import type { SessionOrchestrator } from './voice/types'
+import { existsSync, readFileSync } from 'node:fs'
+import { extname } from 'node:path'
 import { dialog, ipcMain } from 'electron'
 import { getModelDir, getModelId, modelExists } from './modelManager'
 
 interface RegisterIpcHandlersOptions {
   asrService: AsrService
+  historyStore: HistoryStore
   modelDownloader: ModelDownloader
   sessionOrchestrator: SessionOrchestrator
+  settingsStore: SettingsStore
   getMainWindow: () => BrowserWindow | null
 }
 
 export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
-  const { asrService, getMainWindow, modelDownloader, sessionOrchestrator } = options
+  const { asrService, getMainWindow, historyStore, modelDownloader, sessionOrchestrator, settingsStore } = options
 
   ipcMain.on('ping', () => console.warn('pong'))
   ipcMain.handle('asr:health', async () => asrService.health())
@@ -67,15 +73,60 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
     return { ok: true as const }
   })
   ipcMain.handle('voice:getConfig', async () => ({
-    continueWindowMs: sessionOrchestrator.getContinueWindowMs?.() ?? 2000,
+    continueWindowMs: settingsStore.get().voice.continueWindowMs,
   }))
   ipcMain.handle('voice:setConfig', async (_event, payload: { continueWindowMs?: number }) => {
     if (typeof payload?.continueWindowMs === 'number') {
-      sessionOrchestrator.setContinueWindowMs?.(payload.continueWindowMs)
+      const updated = settingsStore.updateVoiceSettings({ continueWindowMs: payload.continueWindowMs })
+      sessionOrchestrator.setContinueWindowMs?.(updated.voice.continueWindowMs)
+    }
+    else {
+      sessionOrchestrator.setContinueWindowMs?.(settingsStore.get().voice.continueWindowMs)
     }
     return {
       ok: true as const,
-      continueWindowMs: sessionOrchestrator.getContinueWindowMs?.() ?? 2000,
+      continueWindowMs: settingsStore.get().voice.continueWindowMs,
+    }
+  })
+  ipcMain.handle('history:create', async (_event, payload: {
+    source: 'file' | 'live'
+    entryType: 'asr_only' | 'polish'
+    commandName?: string | null
+    text: string
+    language?: string
+    elapsedMs?: number
+    audioPath?: string | null
+    triggeredAt?: number
+  }) => historyStore.create(payload))
+  ipcMain.handle('history:list', async (_event, payload?: { limit?: number }) =>
+    historyStore.list(payload?.limit ?? 200))
+  ipcMain.handle('history:clear', async () => {
+    historyStore.clear()
+    return { ok: true as const }
+  })
+  ipcMain.handle('history:readAudio', async (_event, payload: { path: string }) => {
+    const rawPath = payload?.path?.trim()
+    if (!rawPath)
+      return { ok: false as const, message: 'empty path' }
+    if (!existsSync(rawPath))
+      return { ok: false as const, message: 'file not found' }
+
+    const ext = extname(rawPath).toLowerCase()
+    const mimeMap: Record<string, string> = {
+      '.wav': 'audio/wav',
+      '.mp3': 'audio/mpeg',
+      '.m4a': 'audio/mp4',
+      '.aac': 'audio/aac',
+      '.flac': 'audio/flac',
+      '.ogg': 'audio/ogg',
+      '.webm': 'audio/webm',
+    }
+    const mime = mimeMap[ext] ?? 'application/octet-stream'
+    const data = readFileSync(rawPath)
+    return {
+      ok: true as const,
+      mime,
+      base64: data.toString('base64'),
     }
   })
 }

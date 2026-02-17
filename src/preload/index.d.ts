@@ -13,8 +13,52 @@ interface AsrApi {
   pickAudioFile: () => Promise<string | null>
 }
 
+interface HistoryApi {
+  create: (payload: {
+    source: 'file' | 'live'
+    entryType: 'asr_only' | 'polish'
+    commandName?: string | null
+    text: string
+    language?: string
+    elapsedMs?: number
+    audioPath?: string | null
+    triggeredAt?: number
+  }) => Promise<{
+    id: string
+    source: 'file' | 'live'
+    entryType: 'asr_only' | 'polish'
+    commandName: string | null
+    text: string
+    textLength: number
+    language: string
+    elapsedMs: number
+    audioPath: string | null
+    triggeredAt: number
+    createdAt: number
+  }>
+  list: (payload?: { limit?: number }) => Promise<Array<{
+    id: string
+    source: 'file' | 'live'
+    entryType: 'asr_only' | 'polish'
+    commandName: string | null
+    text: string
+    textLength: number
+    language: string
+    elapsedMs: number
+    audioPath: string | null
+    triggeredAt: number
+    createdAt: number
+  }>>
+  clear: () => Promise<{ ok: true }>
+  readAudio: (payload: { path: string }) => Promise<
+    | { ok: true, mime: string, base64: string }
+    | { ok: false, message: string }
+  >
+}
+
 interface AppApi {
   asr: AsrApi
+  history: HistoryApi
   voice: VoiceBridgeApi
 }
 

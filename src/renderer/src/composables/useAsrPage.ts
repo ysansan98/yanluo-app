@@ -9,7 +9,7 @@ interface UseAsrPageOptions {
     text: string
     language?: string
     elapsedMs: number
-    filePath?: string
+    audioPath?: string | null
   }) => void
 }
 
@@ -92,7 +92,7 @@ export function useAsrPage(options: UseAsrPageOptions) {
         text: resultText.value,
         language: resultLanguage.value,
         elapsedMs: transcriptElapsedMs.value,
-        filePath: filePath.value,
+        audioPath: filePath.value,
       })
       await nextTick()
       options.resultCardRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -189,6 +189,7 @@ export function useAsrPage(options: UseAsrPageOptions) {
           source: 'live',
           text: payload.finalText,
           elapsedMs: liveElapsedMs.value,
+          audioPath: payload.audioPath,
         })
       }),
     )

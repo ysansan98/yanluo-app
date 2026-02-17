@@ -10,6 +10,10 @@ import type {
   VoiceSessionMetrics,
   VoiceSessionState,
 } from './types'
+import { Buffer } from 'node:buffer'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { app } from 'electron'
 import { VOICE_TIMEOUT } from './types'
 
 interface SessionOrchestratorDeps {
@@ -26,7 +30,12 @@ interface SessionOrchestratorDeps {
     partialText: string
     elapsedMs: number
   }) => void
-  onUiFinal?: (payload: { sessionId: string, finalText: string, mode: 'pasted' | 'clipboard' }) => void
+  onUiFinal?: (payload: {
+    sessionId: string
+    finalText: string
+    mode: 'pasted' | 'clipboard'
+    audioPath: string | null
+  }) => void
   onUiHide?: () => void
   onUiToast?: (payload: { type: 'info' | 'success' | 'warning' | 'error', message: string }) => void
   log?: (message: string, extra?: Record<string, unknown>) => void
@@ -39,6 +48,7 @@ interface ActiveSession {
   partialText: string
   finalText: string
   carryPrefix: string
+  audioChunks: Buffer[]
 }
 
 function createSessionId(): string {
@@ -140,6 +150,7 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
       partialText: '',
       finalText: '',
       carryPrefix,
+      audioChunks: [],
       metrics: {
         sessionId,
         startedAt: now,
@@ -233,6 +244,7 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     this.deps.audioCapture.onChunk((chunk) => {
       if (this.state !== 'STREAMING')
         return
+      this.session?.audioChunks.push(chunk.pcm16le)
       void this.deps.asrClient.sendAudio(chunk.pcm16le).catch((error) => {
         void this.fail(error, 'send-audio-failed')
       })
@@ -422,10 +434,12 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
         mode: injectResult.mode,
         elapsedMs: session.metrics.injectedAt - session.metrics.startedAt,
       })
+      const audioPath = this.persistAudioToWav(session.sessionId, session.audioChunks)
       this.deps.onUiFinal?.({
         sessionId: session.sessionId,
         finalText: resolvedText,
         mode: injectResult.mode === 'PASTE' ? 'pasted' : 'clipboard',
+        audioPath,
       })
 
       await this.cleanupSession('done', sessionId)
@@ -593,5 +607,53 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
 
   private async sleep(ms: number): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, ms))
+  }
+
+  private persistAudioToWav(sessionId: string, chunks: Buffer[]): string | null {
+    try {
+      const audioDir = join(app.getPath('userData'), 'audio')
+      if (!existsSync(audioDir)) {
+        mkdirSync(audioDir, { recursive: true })
+      }
+      const pcmData = chunks.length ? Buffer.concat(chunks) : Buffer.alloc(0)
+      const wavHeader = this.createWavHeader(pcmData.length, 16000, 1, 16)
+      const wav = Buffer.concat([wavHeader, pcmData])
+      const outputPath = join(audioDir, `${sessionId}.wav`)
+      writeFileSync(outputPath, wav)
+      return outputPath
+    }
+    catch (error) {
+      this.log('failed to persist session audio', {
+        sessionId,
+        message: error instanceof Error ? error.message : String(error),
+      })
+      return null
+    }
+  }
+
+  private createWavHeader(
+    pcmDataLength: number,
+    sampleRate: number,
+    channels: number,
+    bitsPerSample: number,
+  ): Buffer {
+    const header = Buffer.alloc(44)
+    const byteRate = sampleRate * channels * (bitsPerSample / 8)
+    const blockAlign = channels * (bitsPerSample / 8)
+
+    header.write('RIFF', 0)
+    header.writeUInt32LE(36 + pcmDataLength, 4)
+    header.write('WAVE', 8)
+    header.write('fmt ', 12)
+    header.writeUInt32LE(16, 16)
+    header.writeUInt16LE(1, 20)
+    header.writeUInt16LE(channels, 22)
+    header.writeUInt32LE(sampleRate, 24)
+    header.writeUInt32LE(byteRate, 28)
+    header.writeUInt16LE(blockAlign, 32)
+    header.writeUInt16LE(bitsPerSample, 34)
+    header.write('data', 36)
+    header.writeUInt32LE(pcmDataLength, 40)
+    return header
   }
 }

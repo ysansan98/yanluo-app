@@ -9,7 +9,6 @@ import SettingsPanel from './components/SettingsPanel.vue'
 import WorkbenchPage from './components/WorkbenchPage.vue'
 import { useAsrPage } from './composables/useAsrPage'
 
-const HISTORY_STORAGE_KEY = 'yanluo:asr-history:v1'
 const GLOBAL_SHORTCUT = 'Ctrl + Z'
 
 const menuItems: MenuItem[] = [
@@ -25,53 +24,41 @@ const activeMenu = ref<MenuKey>('home')
 const historyEntries = ref<HistoryEntry[]>([])
 const resultCardRef = ref<HTMLElement | null>(null)
 
-function persistHistory(): void {
-  localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(historyEntries.value))
-}
-
-function restoreHistory(): void {
-  const raw = localStorage.getItem(HISTORY_STORAGE_KEY)
-  if (!raw)
-    return
-
-  try {
-    const parsed = JSON.parse(raw) as HistoryEntry[]
-    historyEntries.value = Array.isArray(parsed) ? parsed : []
-  }
-  catch {
-    historyEntries.value = []
-  }
-}
-
 function addHistory(payload: {
   source: TranscriptSource
+  entryType?: 'asr_only' | 'polish'
+  commandName?: string | null
   text: string
   language?: string
   elapsedMs: number
-  filePath?: string
+  audioPath?: string | null
 }): void {
   const text = payload.text.trim()
   if (!text)
     return
 
-  const entry: HistoryEntry = {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  void window.api.history.create({
     source: payload.source,
+    entryType: payload.entryType ?? 'asr_only',
+    commandName: payload.commandName ?? null,
     text,
-    textLength: text.length,
-    language: payload.language?.trim() || 'auto',
-    elapsedMs: Number.isFinite(payload.elapsedMs) ? Math.max(0, Math.round(payload.elapsedMs)) : 0,
-    createdAt: Date.now(),
-    filePath: payload.filePath,
-  }
-
-  historyEntries.value = [entry, ...historyEntries.value].slice(0, 50)
-  persistHistory()
+    language: payload.language,
+    elapsedMs: payload.elapsedMs,
+    audioPath: payload.audioPath ?? null,
+    triggeredAt: Date.now(),
+  }).then((entry) => {
+    historyEntries.value = [entry, ...historyEntries.value].slice(0, 200)
+  }).catch((error) => {
+    console.error('failed to persist history entry', error)
+  })
 }
 
 function clearHistory(): void {
-  historyEntries.value = []
-  persistHistory()
+  void window.api.history.clear().then(() => {
+    historyEntries.value = []
+  }).catch((error) => {
+    console.error('failed to clear history', error)
+  })
 }
 
 function isToday(timestamp: number): boolean {
@@ -128,12 +115,12 @@ const {
   onTranscriptCreated: addHistory,
 })
 
-const todayUsageCount = computed(() => historyEntries.value.filter(item => isToday(item.createdAt)).length)
+const todayUsageCount = computed(() => historyEntries.value.filter(item => isToday(item.triggeredAt)).length)
 const todayChars = computed(() => historyEntries.value
-  .filter(item => isToday(item.createdAt))
+  .filter(item => isToday(item.triggeredAt))
   .reduce((sum, item) => sum + item.textLength, 0))
 const todayAudioDurationMs = computed(() => historyEntries.value
-  .filter(item => isToday(item.createdAt))
+  .filter(item => isToday(item.triggeredAt))
   .reduce((sum, item) => sum + item.elapsedMs, 0))
 const totalChars = computed(() => historyEntries.value.reduce((sum, item) => sum + item.textLength, 0))
 const totalAudioDurationMs = computed(() => historyEntries.value.reduce((sum, item) => sum + item.elapsedMs, 0))
@@ -164,7 +151,11 @@ const accessibilityPermissionHint = computed(() => {
 })
 
 onMounted(() => {
-  restoreHistory()
+  void window.api.history.list({ limit: 200 }).then((entries) => {
+    historyEntries.value = entries
+  }).catch((error) => {
+    console.error('failed to load history entries', error)
+  })
 })
 </script>
 

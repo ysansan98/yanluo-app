@@ -1,6 +1,8 @@
 import type { BrowserWindow } from 'electron'
 import type { AsrService } from './asrService'
+import type { HistoryStore } from './historyStore'
 import type { ModelDownloader } from './modelManager'
+import type { SettingsStore } from './settingsStore'
 import type { SessionOrchestrator } from './voice/types'
 import type { VoiceHudWindowController } from './windows/voiceHudWindow'
 import { screen } from 'electron'
@@ -9,8 +11,10 @@ import { registerIpcHandlers } from './registerIpcHandlers'
 
 interface CreateMainAppHandlersOptions {
   asrService: AsrService
+  historyStore: HistoryStore
   modelDownloader: ModelDownloader
   sessionOrchestrator: SessionOrchestrator
+  settingsStore: SettingsStore
   voiceHudController: VoiceHudWindowController
   createMainWindow: () => BrowserWindow
   getMainWindow: () => BrowserWindow | null
@@ -26,10 +30,12 @@ interface MainAppHandlers {
 export function createMainAppHandlers(options: CreateMainAppHandlersOptions): MainAppHandlers {
   const {
     asrService,
+    historyStore,
     createMainWindow,
     getMainWindow,
     modelDownloader,
     sessionOrchestrator,
+    settingsStore,
     setMainWindow,
     voiceHudController,
   } = options
@@ -40,14 +46,17 @@ export function createMainAppHandlers(options: CreateMainAppHandlersOptions): Ma
 
       registerIpcHandlers({
         asrService,
+        historyStore,
         modelDownloader,
         sessionOrchestrator,
+        settingsStore,
         getMainWindow,
       })
 
       asrService.start().catch((err) => {
         console.error('Failed to start ASR service:', err)
       })
+      sessionOrchestrator.setContinueWindowMs?.(settingsStore.get().voice.continueWindowMs)
       sessionOrchestrator.init().catch((err) => {
         console.error('Failed to initialize voice session orchestrator:', err)
       })

@@ -14,6 +14,7 @@ export interface VoiceUiFinalPayload {
   sessionId: string
   finalText: string
   mode: 'pasted' | 'clipboard'
+  audioPath: string | null
 }
 
 export interface VoiceUiToastPayload {

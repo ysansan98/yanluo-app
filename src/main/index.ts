@@ -3,13 +3,17 @@ import icon from '../../resources/icon.png?asset'
 import { registerAppLifecycle } from './appLifecycle'
 import { AsrService } from './asrService'
 import { createMainAppHandlers } from './bootstrapMainApp'
+import { HistoryStore } from './historyStore'
 import { ModelDownloader } from './modelManager'
+import { SettingsStore } from './settingsStore'
 import { createVoiceRuntime, VOICE_IPC } from './voice'
 import { createMainWindow } from './windows/mainWindow'
 import { VoiceHudWindowController } from './windows/voiceHudWindow'
 
 const asrService = new AsrService()
+const historyStore = new HistoryStore()
 const modelDownloader = new ModelDownloader()
+const settingsStore = new SettingsStore()
 let mainWindow: BrowserWindow | null = null
 const voiceHudController = new VoiceHudWindowController({ icon })
 
@@ -52,8 +56,10 @@ const { hotkeyManager, sessionOrchestrator } = createVoiceRuntime({
 
 const appHandlers = createMainAppHandlers({
   asrService,
+  historyStore,
   modelDownloader,
   sessionOrchestrator,
+  settingsStore,
   voiceHudController,
   createMainWindow: () => createMainWindow({ icon }),
   getMainWindow: () => {
