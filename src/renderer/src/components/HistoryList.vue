@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { HistoryEntry } from '../types/ui'
 import HistoryItem from './HistoryItem.vue'
+import { ref } from 'vue'
 
 interface Props {
   entries: HistoryEntry[]
@@ -10,6 +11,16 @@ interface Props {
 withDefaults(defineProps<Props>(), {
   emptyText: '暂无记录',
 })
+
+const expandedId = ref<string | null>(null)
+
+function toggleExpand(id: string) {
+  if (expandedId.value === id) {
+    expandedId.value = null
+  } else {
+    expandedId.value = id
+  }
+}
 </script>
 
 <template>
@@ -23,6 +34,8 @@ withDefaults(defineProps<Props>(), {
       v-for="item in entries"
       :key="item.id"
       :entry="item"
+      :expanded="expandedId === item.id"
+      @toggle-expand="toggleExpand"
     />
   </div>
 </template>

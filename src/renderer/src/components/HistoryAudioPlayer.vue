@@ -170,7 +170,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="mt-2 rounded-xl border border-yl-line-230 bg-yl-paper-150/80 px-3 py-2.5">
+  <div class="mt-2 rounded-xl border border-yl-line-230 bg-yl-paper-150/80 px-3 py-2.5" @click.stop>
     <audio
       ref="audioRef"
       :src="audioSrc"
