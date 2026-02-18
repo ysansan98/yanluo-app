@@ -1,4 +1,5 @@
 import type { BrowserWindow } from 'electron'
+import type { VadConfig } from '~shared/voice'
 import type { AsrService } from './asrService'
 import type { HistoryStore } from './historyStore'
 import type { ModelDownloader } from './modelManager'
@@ -7,6 +8,7 @@ import type { SessionOrchestrator } from './voice/types'
 import { existsSync, readFileSync } from 'node:fs'
 import { extname } from 'node:path'
 import { dialog, ipcMain } from 'electron'
+import { VAD_CONFIG_IPC } from '~shared/voice'
 import { getModelDir, getModelId, modelExists } from './modelManager'
 
 interface RegisterIpcHandlersOptions {
@@ -86,6 +88,21 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
     return {
       ok: true as const,
       continueWindowMs: settingsStore.get().voice.continueWindowMs,
+    }
+  })
+  ipcMain.handle(VAD_CONFIG_IPC.GET, async () => ({
+    ...settingsStore.get().voice.vad,
+  }))
+  ipcMain.handle(VAD_CONFIG_IPC.SET, async (_event, payload: Partial<VadConfig>) => {
+    const updated = settingsStore.updateVadSettings(payload)
+    // Notify all renderer windows of config update
+    const mainWindow = getMainWindow()
+    if (mainWindow) {
+      mainWindow.webContents.send(VAD_CONFIG_IPC.UPDATED, updated.voice.vad)
+    }
+    return {
+      ok: true as const,
+      ...updated.voice.vad,
     }
   })
   ipcMain.handle('history:create', async (_event, payload: {

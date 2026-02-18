@@ -1,10 +1,9 @@
-export const VOICE_IPC = {
-  UI_SHOW: 'voice:ui:show',
-  UI_UPDATE: 'voice:ui:update',
-  UI_FINAL: 'voice:ui:final',
-  UI_HIDE: 'voice:ui:hide',
-  UI_TOAST: 'voice:ui:toast',
-  COMMAND_TOGGLE: 'voice:command:toggle',
-} as const
-
-export type VoiceIpcChannel = (typeof VOICE_IPC)[keyof typeof VOICE_IPC]
+// Re-export shared IPC channel definitions from ~shared
+export {
+  AUDIO_IPC,
+  type AudioIpcChannel,
+  VAD_CONFIG_IPC,
+  type VadConfigIpcChannel,
+  VOICE_IPC,
+  type VoiceIpcChannel,
+} from '~shared/voice'

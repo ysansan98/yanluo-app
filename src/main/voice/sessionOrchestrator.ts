@@ -49,6 +49,7 @@ interface ActiveSession {
   finalText: string
   carryPrefix: string
   audioChunks: Buffer[]
+  silentCancelRequested: boolean
 }
 
 function createSessionId(): string {
@@ -151,6 +152,7 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
       finalText: '',
       carryPrefix,
       audioChunks: [],
+      silentCancelRequested: false,
       metrics: {
         sessionId,
         startedAt: now,
@@ -228,6 +230,36 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     }
   }
 
+  private async handleSilentCancel(sessionId: string): Promise<void> {
+    if (!this.session || this.session.sessionId !== sessionId) {
+      return
+    }
+
+    // Check if already silently canceled
+    if (this.session.silentCancelRequested) {
+      this.log('silent cancel already requested', { sessionId })
+      return
+    }
+
+    this.session.silentCancelRequested = true
+    this.log('performing silent cancel', { sessionId })
+
+    // Stop audio capture
+    await this.deps.audioCapture.stop().catch(() => {})
+
+    // Clear continue timer
+    if (this.continueTimer) {
+      clearTimeout(this.continueTimer)
+      this.continueTimer = null
+    }
+    this.continuingSessionId = null
+
+    // Silent cleanup, no error shown
+    await this.cleanupSession('vad-silent', sessionId)
+    this.transition('IDLE')
+    this.deps.onUiHide?.()
+  }
+
   private bindEvents(): void {
     if (this.deps.enableHotkey ?? true) {
       this.deps.hotkeyManager.onPress(() => {
@@ -248,6 +280,16 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
       void this.deps.asrClient.sendAudio(chunk.pcm16le).catch((error) => {
         void this.fail(error, 'send-audio-failed')
       })
+    })
+
+    this.deps.audioCapture.onSilentCancel?.(() => {
+      if (this.state === 'STREAMING' || this.state === 'FINALIZING') {
+        const sessionId = this.session?.sessionId
+        if (sessionId) {
+          this.log('silent cancel requested by VAD', { sessionId })
+          void this.handleSilentCancel(sessionId)
+        }
+      }
     })
 
     this.deps.asrClient.onPartial((msg) => {
@@ -363,6 +405,13 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     if (!this.session || this.session.sessionId !== sessionId) {
       return
     }
+
+    // Check if already silently canceled
+    if (this.session.silentCancelRequested) {
+      this.log('session already silently canceled', { sessionId })
+      return
+    }
+
     this.continueTimer = null
     this.continuingSessionId = null
     const session = this.session
@@ -375,6 +424,13 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
         this.log('finalize canceled due to session preemption', { sessionId })
         return
       }
+
+      // Check again if silent cancel was requested while waiting
+      if (session.silentCancelRequested) {
+        this.log('session silently canceled while waiting for final', { sessionId })
+        return
+      }
+
       let resolvedText = ''
       if (!final) {
         if (session.partialText.trim()) {
@@ -386,7 +442,12 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
           })
         }
         else {
-          throw this.makeError('E_ASR_TIMEOUT', `Final transcript timeout after ${VOICE_TIMEOUT.FINAL_MS}ms`)
+          // Silent cancel for empty result
+          this.log('final timeout with empty partial, silently canceling', { sessionId })
+          await this.cleanupSession('asr-empty-timeout', sessionId)
+          this.transition('IDLE')
+          this.deps.onUiHide?.()
+          return
         }
       }
       else if (!final.text.trim()) {
@@ -399,7 +460,12 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
           })
         }
         else {
-          throw this.makeError('E_EMPTY_RESULT', 'Empty final transcript')
+          // Silent cancel for empty result
+          this.log('empty final result with empty partial, silently canceling', { sessionId })
+          await this.cleanupSession('asr-empty-final', sessionId)
+          this.transition('IDLE')
+          this.deps.onUiHide?.()
+          return
         }
       }
       else {
@@ -411,7 +477,12 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
       }
 
       if (!resolvedText.trim()) {
-        throw this.makeError('E_EMPTY_RESULT', 'Empty final transcript')
+        // Silent cancel for empty result
+        this.log('empty resolved text, silently canceling', { sessionId })
+        await this.cleanupSession('asr-empty-resolved', sessionId)
+        this.transition('IDLE')
+        this.deps.onUiHide?.()
+        return
       }
 
       if (this.isSessionPreempted(sessionId) || !this.isSessionCurrent(sessionId)) {

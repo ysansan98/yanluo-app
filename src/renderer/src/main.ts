@@ -1,5 +1,4 @@
 import { createApp } from 'vue'
-
 import App from './App.vue'
 import { initRendererMicCapture } from './voice/rendererMicCapture'
 import VoiceHudWindow from './VoiceHudWindow.vue'

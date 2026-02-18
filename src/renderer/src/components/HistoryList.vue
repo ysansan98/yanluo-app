@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HistoryEntry } from '../types/ui'
-import HistoryItem from './HistoryItem.vue'
 import { ref } from 'vue'
+import HistoryItem from './HistoryItem.vue'
 
 interface Props {
   entries: HistoryEntry[]
@@ -17,7 +17,8 @@ const expandedId = ref<string | null>(null)
 function toggleExpand(id: string) {
   if (expandedId.value === id) {
     expandedId.value = null
-  } else {
+  }
+  else {
     expandedId.value = id
   }
 }

@@ -1,26 +1,18 @@
-export interface VoiceUiShowPayload {
-  sessionId: string
-  status: 'arming' | 'recording' | 'finalizing'
-}
+// Import shared voice types from ~shared
+import type {
+  VadConfig as SharedVadConfig,
+  VoiceUiFinalPayload as SharedVoiceUiFinalPayload,
+  VoiceUiShowPayload as SharedVoiceUiShowPayload,
+  VoiceUiToastPayload as SharedVoiceUiToastPayload,
+  VoiceUiUpdatePayload as SharedVoiceUiUpdatePayload,
+} from '~shared/voice'
 
-export interface VoiceUiUpdatePayload {
-  sessionId: string
-  status: 'recording' | 'finalizing'
-  partialText: string
-  elapsedMs: number
-}
-
-export interface VoiceUiFinalPayload {
-  sessionId: string
-  finalText: string
-  mode: 'pasted' | 'clipboard'
-  audioPath: string | null
-}
-
-export interface VoiceUiToastPayload {
-  type: 'info' | 'success' | 'warning' | 'error'
-  message: string
-}
+// Re-export for backward compatibility
+export type VadConfig = SharedVadConfig
+export type VoiceUiFinalPayload = SharedVoiceUiFinalPayload
+export type VoiceUiShowPayload = SharedVoiceUiShowPayload
+export type VoiceUiToastPayload = SharedVoiceUiToastPayload
+export type VoiceUiUpdatePayload = SharedVoiceUiUpdatePayload
 
 export interface VoiceApi {
   onShow: (cb: (payload: VoiceUiShowPayload) => void) => () => void
@@ -47,8 +39,12 @@ export interface VoiceApi {
     inputDeviceLabel?: string
   }) => void
   sendAudioError: (payload: { message: string }) => void
+  requestSilentCancel: () => void
   startRecording: () => Promise<{ ok: true }>
   stopRecording: () => Promise<{ ok: true }>
   getConfig: () => Promise<{ continueWindowMs: number }>
   setConfig: (payload: { continueWindowMs?: number }) => Promise<{ ok: true, continueWindowMs: number }>
+  getVadConfig: () => Promise<VadConfig>
+  setVadConfig: (payload: Partial<VadConfig>) => Promise<{ ok: true } & VadConfig>
+  onVadConfigUpdated: (cb: (config: VadConfig) => void) => () => void
 }

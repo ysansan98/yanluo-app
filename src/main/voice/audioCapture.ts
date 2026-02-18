@@ -2,12 +2,7 @@ import type { WebContents } from 'electron'
 import type { AudioCapture, AudioChunk } from './types'
 import { Buffer } from 'node:buffer'
 import { ipcMain } from 'electron'
-
-const IPC_AUDIO_START = 'voice:audio:start'
-const IPC_AUDIO_STOP = 'voice:audio:stop'
-const IPC_AUDIO_CHUNK = 'voice:audio:chunk'
-const IPC_AUDIO_ERROR = 'voice:audio:error'
-const IPC_AUDIO_STATE = 'voice:audio:state'
+import { AUDIO_IPC } from '~shared/voice'
 
 interface RendererAudioCaptureOptions {
   getTargetWebContents: () => WebContents | null
@@ -41,6 +36,7 @@ export class RendererAudioCapture implements AudioCapture {
   private readonly log: (message: string, extra?: Record<string, unknown>) => void
 
   private chunkHandler: ((chunk: AudioChunk) => void) | null = null
+  private silentCancelHandlers: Array<() => void> = []
   private running = false
   private listenersBound = false
 
@@ -59,7 +55,7 @@ export class RendererAudioCapture implements AudioCapture {
       throw new Error('Renderer is not ready for microphone capture')
     }
 
-    target.send(IPC_AUDIO_START)
+    target.send(AUDIO_IPC.START)
     this.running = true
     this.log('requested renderer microphone start')
   }
@@ -67,7 +63,7 @@ export class RendererAudioCapture implements AudioCapture {
   async stop(): Promise<void> {
     const target = this.getTargetWebContents()
     if (target) {
-      target.send(IPC_AUDIO_STOP)
+      target.send(AUDIO_IPC.STOP)
     }
 
     if (this.running) {
@@ -80,11 +76,15 @@ export class RendererAudioCapture implements AudioCapture {
     this.chunkHandler = cb
   }
 
+  onSilentCancel(cb: () => void): void {
+    this.silentCancelHandlers.push(cb)
+  }
+
   private bindIpcListeners(): void {
     if (this.listenersBound)
       return
 
-    ipcMain.on(IPC_AUDIO_CHUNK, (_event, payload: AudioChunkPayload) => {
+    ipcMain.on(AUDIO_IPC.CHUNK, (_event, payload: AudioChunkPayload) => {
       if (!this.running)
         return
       if (!payload?.pcm16leBase64)
@@ -99,12 +99,17 @@ export class RendererAudioCapture implements AudioCapture {
       })
     })
 
-    ipcMain.on(IPC_AUDIO_STATE, (_event, payload: AudioStatePayload) => {
+    ipcMain.on(AUDIO_IPC.STATE, (_event, payload: AudioStatePayload) => {
       this.log('renderer capture state', payload ? { ...payload } : {})
     })
 
-    ipcMain.on(IPC_AUDIO_ERROR, (_event, payload: AudioErrorPayload) => {
+    ipcMain.on(AUDIO_IPC.ERROR, (_event, payload: AudioErrorPayload) => {
       this.log('renderer capture error', { message: payload?.message ?? 'unknown' })
+    })
+
+    ipcMain.on(AUDIO_IPC.VAD_SILENT_CANCEL, () => {
+      this.log('silent cancel requested by VAD')
+      this.silentCancelHandlers.forEach(cb => cb())
     })
 
     this.listenersBound = true
@@ -113,6 +118,7 @@ export class RendererAudioCapture implements AudioCapture {
 
 export class StubAudioCapture implements AudioCapture {
   private chunkHandler: ((chunk: AudioChunk) => void) | null = null
+  private silentCancelHandlers: Array<() => void> = []
 
   async start(): Promise<void> {}
 
@@ -122,7 +128,15 @@ export class StubAudioCapture implements AudioCapture {
     this.chunkHandler = cb
   }
 
+  onSilentCancel(cb: () => void): void {
+    this.silentCancelHandlers.push(cb)
+  }
+
   emitChunk(chunk: AudioChunk): void {
     this.chunkHandler?.(chunk)
+  }
+
+  emitSilentCancel(): void {
+    this.silentCancelHandlers.forEach(cb => cb())
   }
 }
