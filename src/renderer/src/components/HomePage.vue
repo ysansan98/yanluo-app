@@ -19,7 +19,9 @@ const emit = defineEmits<{
   <section class="space-y-4">
     <StatsSection :cards="statCards" />
 
-    <section class="rounded-[34px] border border-yl-line-350/60 bg-white/88 p-5 shadow-yl-card">
+    <section
+      class="rounded-[34px] border border-yl-line-350/60 bg-white/88 p-5 shadow-yl-card"
+    >
       <div class="mb-3 flex items-center justify-between">
         <div class="text-base font-bold text-yl-ink-650">
           最近历史记录

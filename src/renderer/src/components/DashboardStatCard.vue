@@ -11,7 +11,10 @@ const props = withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-  <article class="rounded-2xl border border-yl-line-180 bg-gradient-to-br p-3" :class="props.toneClass">
+  <article
+    class="rounded-2xl border border-yl-line-180 bg-gradient-to-br p-3"
+    :class="props.toneClass"
+  >
     <div class="text-xs text-yl-muted-420">
       {{ props.label }}
     </div>

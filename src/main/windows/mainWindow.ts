@@ -5,10 +5,12 @@ import { is } from '@electron-toolkit/utils'
 import { BrowserWindow, shell } from 'electron'
 
 interface CreateMainWindowOptions {
-  icon: NativeImage | string
+  icon?: NativeImage | string
 }
 
-export function createMainWindow(options: CreateMainWindowOptions): BrowserWindow {
+export function createMainWindow(
+  options: CreateMainWindowOptions,
+): BrowserWindow {
   const mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
@@ -19,7 +21,7 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
           titleBarStyle: 'hiddenInset',
         }
       : {}),
-    ...(process.platform === 'linux' ? { icon: options.icon } : {}),
+    ...(process.platform === 'linux' && options.icon ? { icon: options.icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,

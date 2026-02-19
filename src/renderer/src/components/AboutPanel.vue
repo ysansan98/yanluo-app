@@ -9,7 +9,9 @@ const props = defineProps<Props>()
 </script>
 
 <template>
-  <section class="rounded-3xl border border-yl-line-350/50 bg-white/88 p-6 shadow-yl-card">
+  <section
+    class="rounded-3xl border border-yl-line-350/50 bg-white/88 p-6 shadow-yl-card"
+  >
     <div class="text-2xl font-bold text-yl-ink-700">
       关于
     </div>
@@ -44,7 +46,9 @@ const props = defineProps<Props>()
       </div>
     </div>
 
-    <div class="mt-4 rounded-2xl border border-yl-line-180 bg-white p-3 text-sm text-yl-muted-560">
+    <div
+      class="mt-4 rounded-2xl border border-yl-line-180 bg-white p-3 text-sm text-yl-muted-560"
+    >
       反馈入口：GitHub Issue / 内部反馈群（链接待接入）
     </div>
   </section>

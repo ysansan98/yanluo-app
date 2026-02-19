@@ -10,7 +10,9 @@ interface RegisterAppLifecycleOptions {
   onBeforeQuit: () => void
 }
 
-export function registerAppLifecycle(options: RegisterAppLifecycleOptions): void {
+export function registerAppLifecycle(
+  options: RegisterAppLifecycleOptions,
+): void {
   app.whenReady().then(async () => {
     electronApp.setAppUserModelId('com.electron')
 

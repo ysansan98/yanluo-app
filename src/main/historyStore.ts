@@ -83,13 +83,16 @@ export class HistoryStore {
       text,
       textLength: text.length,
       language: payload.language?.trim() || 'auto',
-      elapsedMs: Number.isFinite(payload.elapsedMs) ? Math.max(0, Math.round(payload.elapsedMs ?? 0)) : 0,
+      elapsedMs: Number.isFinite(payload.elapsedMs)
+        ? Math.max(0, Math.round(payload.elapsedMs ?? 0))
+        : 0,
       audioPath: payload.audioPath?.trim() || null,
       triggeredAt: payload.triggeredAt ?? now,
       createdAt: now,
     }
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO history_entries (
         id, source, entry_type, command_name, text, text_length, language,
         elapsed_ms, audio_path, triggered_at, created_at
@@ -97,14 +100,17 @@ export class HistoryStore {
         @id, @source, @entryType, @commandName, @text, @textLength, @language,
         @elapsedMs, @audioPath, @triggeredAt, @createdAt
       )
-    `).run(entry)
+    `,
+    ).run(entry)
 
     return entry
   }
 
   list(limit = 200): HistoryEntry[] {
     const db = this.getDb()
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT
         id,
         source,
@@ -120,7 +126,9 @@ export class HistoryStore {
       FROM history_entries
       ORDER BY triggered_at DESC
       LIMIT ?
-    `).all(limit) as HistoryEntry[]
+    `,
+      )
+      .all(limit) as HistoryEntry[]
     return rows
   }
 

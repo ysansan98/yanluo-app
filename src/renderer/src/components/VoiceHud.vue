@@ -3,17 +3,20 @@ import { computed } from 'vue'
 
 type HudStatus = 'arming' | 'recording' | 'finalizing' | 'success' | 'error'
 
-const props = withDefaults(defineProps<{
-  visible: boolean
-  status: HudStatus
-  partialText: string
-  finalText: string
-  elapsedMs: number
-  hintText: string
-  detached?: boolean
-}>(), {
-  detached: false,
-})
+const props = withDefaults(
+  defineProps<{
+    visible: boolean
+    status: HudStatus
+    partialText: string
+    finalText: string
+    elapsedMs: number
+    hintText: string
+    detached?: boolean
+  }>(),
+  {
+    detached: false,
+  },
+)
 
 const displayText = computed(() => {
   const partial = props.partialText.trim()
@@ -69,7 +72,8 @@ const dotClass = computed(() => {
 })
 
 const containerClass = computed(() => {
-  const base = 'pointer-events-none rounded-xl border px-3 py-2 shadow-[0_10px_26px_rgba(60,44,24,0.18)] backdrop-blur-[1px] [font-family:\'Noto_Serif_SC\',\'Songti_SC\',\'STSong\',serif]'
+  const base
+    = 'pointer-events-none rounded-xl border px-3 py-2 shadow-[0_10px_26px_rgba(60,44,24,0.18)] backdrop-blur-[1px] [font-family:\'Noto_Serif_SC\',\'Songti_SC\',\'STSong\',serif]'
   if (props.detached) {
     return `mx-auto my-0 w-[min(320px,calc(100vw-24px))] ${base}`
   }
@@ -86,21 +90,20 @@ const containerClass = computed(() => {
     leave-from-class="translate-y-0 opacity-100"
     leave-to-class="translate-y-[-4px] opacity-0"
   >
-    <div
-      v-if="visible"
-      :class="[containerClass, stateClass]"
-    >
+    <div v-if="visible" :class="[containerClass, stateClass]">
       <div class="flex items-center gap-2.5">
-        <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#9a8460] bg-[#f2e7d4] text-[11px] font-semibold text-[#4a3a23]" :class="logoClass">
-          言
+        <div
+          class="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#9a8460] bg-[#f2e7d4] text-[11px] font-semibold text-[#4a3a23]"
+          :class="logoClass"
+        >
+          <img src="@renderer/assets/logo.svg" alt="logo" class="size-full">
         </div>
 
         <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-1.5 text-[13px] leading-5 text-[#2f261a]">
-            <span
-              class="h-1.5 w-1.5 shrink-0 rounded-full"
-              :class="dotClass"
-            />
+          <div
+            class="flex items-center gap-1.5 text-[13px] leading-5 text-[#2f261a]"
+          >
+            <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="dotClass" />
             <span class="line-clamp-1">{{ displayText }}</span>
             <span
               v-if="showLoading"
@@ -125,7 +128,9 @@ const containerClass = computed(() => {
 }
 
 .hud-logo {
-  transition: transform 180ms ease, box-shadow 180ms ease;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease;
 }
 
 .hud-logo-listening {

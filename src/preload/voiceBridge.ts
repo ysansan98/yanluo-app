@@ -1,12 +1,12 @@
-import type { VadConfig, VoiceUiFinalPayload, VoiceUiShowPayload, VoiceUiToastPayload, VoiceUiUpdatePayload } from '~shared/voice'
-import { ipcRenderer } from 'electron'
-import {
-  AUDIO_IPC,
-  VAD_CONFIG_IPC,
-
-  VOICE_IPC,
-
+import type {
+  VadConfig,
+  VoiceUiFinalPayload,
+  VoiceUiShowPayload,
+  VoiceUiToastPayload,
+  VoiceUiUpdatePayload,
 } from '~shared/voice'
+import { ipcRenderer } from 'electron'
+import { AUDIO_IPC, VAD_CONFIG_IPC, VOICE_IPC } from '~shared/voice'
 
 export interface VoiceBridgeApi {
   onShow: (cb: (payload: VoiceUiShowPayload) => void) => () => void
@@ -37,14 +37,22 @@ export interface VoiceBridgeApi {
   startRecording: () => Promise<{ ok: true }>
   stopRecording: () => Promise<{ ok: true }>
   getConfig: () => Promise<{ continueWindowMs: number }>
-  setConfig: (payload: { continueWindowMs?: number }) => Promise<{ ok: true, continueWindowMs: number }>
+  setConfig: (payload: {
+    continueWindowMs?: number
+  }) => Promise<{ ok: true, continueWindowMs: number }>
   getVadConfig: () => Promise<VadConfig>
-  setVadConfig: (payload: Partial<VadConfig>) => Promise<{ ok: true } & VadConfig>
+  setVadConfig: (
+    payload: Partial<VadConfig>,
+  ) => Promise<{ ok: true } & VadConfig>
   onVadConfigUpdated: (cb: (config: VadConfig) => void) => () => void
 }
 
-function bindEvent<T>(channel: string, handler: (payload: T) => void): () => void {
-  const listener = (_event: Electron.IpcRendererEvent, payload: T) => handler(payload)
+function bindEvent<T>(
+  channel: string,
+  handler: (payload: T) => void,
+): () => void {
+  const listener = (_event: Electron.IpcRendererEvent, payload: T) =>
+    handler(payload)
   ipcRenderer.on(channel, listener)
   return () => ipcRenderer.removeListener(channel, listener)
 }

@@ -43,8 +43,12 @@ export interface VoiceApi {
   startRecording: () => Promise<{ ok: true }>
   stopRecording: () => Promise<{ ok: true }>
   getConfig: () => Promise<{ continueWindowMs: number }>
-  setConfig: (payload: { continueWindowMs?: number }) => Promise<{ ok: true, continueWindowMs: number }>
+  setConfig: (payload: {
+    continueWindowMs?: number
+  }) => Promise<{ ok: true, continueWindowMs: number }>
   getVadConfig: () => Promise<VadConfig>
-  setVadConfig: (payload: Partial<VadConfig>) => Promise<{ ok: true } & VadConfig>
+  setVadConfig: (
+    payload: Partial<VadConfig>,
+  ) => Promise<{ ok: true } & VadConfig>
   onVadConfigUpdated: (cb: (config: VadConfig) => void) => () => void
 }

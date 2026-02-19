@@ -1,6 +1,7 @@
 export * from './audioCapture'
 export * from './bootstrap'
 export * from './hotkeyManager'
+export * from './hotkeyState'
 export * from './ipcChannels'
 export * from './permissionChecker'
 export * from './sessionOrchestrator'

@@ -41,14 +41,15 @@ function captureClipboard(): ClipboardSnapshot {
   const findText = clipboard.readFindText()
   const bookmark = clipboard.readBookmark()
   const imageDataUrl = clipboard.readImage().toDataURL()
-  const hasData = clipboard.availableFormats().length > 0
-    || text.length > 0
-    || html.length > 0
-    || rtf.length > 0
-    || findText.length > 0
-    || bookmark.title.length > 0
-    || bookmark.url.length > 0
-    || imageDataUrl.length > 0
+  const hasData
+    = clipboard.availableFormats().length > 0
+      || text.length > 0
+      || html.length > 0
+      || rtf.length > 0
+      || findText.length > 0
+      || bookmark.title.length > 0
+      || bookmark.url.length > 0
+      || imageDataUrl.length > 0
 
   return {
     hasData,
@@ -100,15 +101,19 @@ function restoreClipboard(snapshot: ClipboardSnapshot): void {
 
 function isClipboardRestored(snapshot: ClipboardSnapshot): boolean {
   const currentBookmark = clipboard.readBookmark()
-  return clipboard.readText() === snapshot.text
+  return (
+    clipboard.readText() === snapshot.text
     && clipboard.readHTML() === snapshot.html
     && clipboard.readRTF() === snapshot.rtf
     && clipboard.readFindText() === snapshot.findText
     && currentBookmark.title === snapshot.bookmarkTitle
     && currentBookmark.url === snapshot.bookmarkUrl
+  )
 }
 
-async function restoreClipboardWithRetry(snapshot: ClipboardSnapshot): Promise<void> {
+async function restoreClipboardWithRetry(
+  snapshot: ClipboardSnapshot,
+): Promise<void> {
   for (let i = 0; i < RESTORE_CLIPBOARD_RETRY; i += 1) {
     restoreClipboard(snapshot)
     if (isClipboardRestored(snapshot)) {
@@ -154,16 +159,19 @@ export class MacTextInjector implements TextInjector {
       return {
         ok: true,
         mode: 'CLIPBOARD_ONLY',
-        reason: 'Clipboard updated (paste shortcut is only implemented on macOS)',
+        reason:
+          'Clipboard updated (paste shortcut is only implemented on macOS)',
       }
     }
 
-    const accessibilityGranted = systemPreferences.isTrustedAccessibilityClient(false)
+    const accessibilityGranted
+      = systemPreferences.isTrustedAccessibilityClient(false)
     if (!accessibilityGranted) {
       return {
         ok: true,
         mode: 'CLIPBOARD_ONLY',
-        reason: 'Clipboard updated (Accessibility permission is required for auto paste)',
+        reason:
+          'Clipboard updated (Accessibility permission is required for auto paste)',
       }
     }
 

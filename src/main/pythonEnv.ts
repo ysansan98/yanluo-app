@@ -13,7 +13,9 @@ export function getAsrServiceDir(): string {
 const getVenvRoot = (): string => join(getAsrServiceDir(), '.venv')
 
 function getVenvBinDir(): string {
-  return process.platform === 'win32' ? join(getVenvRoot(), 'Scripts') : join(getVenvRoot(), 'bin')
+  return process.platform === 'win32'
+    ? join(getVenvRoot(), 'Scripts')
+    : join(getVenvRoot(), 'bin')
 }
 
 export function resolvePythonCmd(): string {
@@ -37,7 +39,9 @@ export function buildPythonEnv(baseEnv: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   if (!existsSync(venvBinDir))
     return { ...baseEnv }
 
-  const pathWithVenv = baseEnv.PATH ? `${venvBinDir}${delimiter}${baseEnv.PATH}` : venvBinDir
+  const pathWithVenv = baseEnv.PATH
+    ? `${venvBinDir}${delimiter}${baseEnv.PATH}`
+    : venvBinDir
   return {
     ...baseEnv,
     PATH: pathWithVenv,

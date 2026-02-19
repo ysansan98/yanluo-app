@@ -1,6 +1,1 @@
-export {
-  formatDuration,
-  formatTime,
-  isToday,
-  sourceLabel,
-} from './formatters'
+export { formatDuration, formatTime, isToday, sourceLabel } from './formatters'

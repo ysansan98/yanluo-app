@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --font-yl-sans: 'IBM Plex Sans', 'Avenir Next', sans-serif;
-  --font-yl-mono: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  --font-yl-sans: "IBM Plex Sans", "Avenir Next", sans-serif;
+  --font-yl-mono: "IBM Plex Mono", "JetBrains Mono", monospace;
 
   --color-yl-ink-900: #1f2430;
   --color-yl-ink-700: #2a354f;
@@ -19,6 +19,11 @@
   --color-yl-brand-100: #e9edf8;
 
   --color-yl-accent-600: #c85d3a;
+
+  --color-yl-success-600: #5a8a6e;
+  --color-yl-success-500: #6b9b7f;
+  --color-yl-success-100: #e8f0eb;
+  --color-yl-success-50: #f4f8f5;
 
   --color-yl-paper-500: #efe8df;
   --color-yl-paper-400: #f6efe2;

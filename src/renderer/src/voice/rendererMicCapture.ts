@@ -33,10 +33,12 @@ class RendererMicCaptureManager {
     void this.loadVadConfig()
 
     // Listen for VAD config updates
-    this.stopVadConfigUpdatedListener = window.api.voice.onVadConfigUpdated?.((config) => {
-      this.vadConfig = { ...this.vadConfig, ...config }
-      console.log('[VAD] Config updated', this.vadConfig)
-    })
+    this.stopVadConfigUpdatedListener = window.api.voice.onVadConfigUpdated?.(
+      (config) => {
+        this.vadConfig = { ...this.vadConfig, ...config }
+        console.log('[VAD] Config updated', this.vadConfig)
+      },
+    )
 
     window.api.voice.sendAudioState({
       state: 'stopped',
@@ -100,7 +102,10 @@ class RendererMicCaptureManager {
         const input = event.inputBuffer.getChannelData(0)
         const rms = this.calculateRms(input)
         const maxAbs = this.calculateMaxAbs(input)
-        const pcm16 = this.resampleTo16kPcm16(input, this.audioContext?.sampleRate ?? 48000)
+        const pcm16 = this.resampleTo16kPcm16(
+          input,
+          this.audioContext?.sampleRate ?? 48000,
+        )
         if (pcm16.length === 0)
           return
         const nonZeroRatio = this.calculateNonZeroRatio(pcm16)
@@ -114,9 +119,14 @@ class RendererMicCaptureManager {
 
         // Energy-based detection for real-time UI feedback
         if (this.vadConfig.enabled) {
-          const isActive = rms > VAD_ENERGY_THRESHOLDS.MIN_RMS || maxAbs > VAD_ENERGY_THRESHOLDS.ACTIVE_ABS_THRESHOLD
+          const isActive
+            = rms > VAD_ENERGY_THRESHOLDS.MIN_RMS
+              || maxAbs > VAD_ENERGY_THRESHOLDS.ACTIVE_ABS_THRESHOLD
           this.activityWindow.push(isActive)
-          if (this.activityWindow.length > VAD_ENERGY_THRESHOLDS.ACTIVITY_WINDOW_SIZE) {
+          if (
+            this.activityWindow.length
+            > VAD_ENERGY_THRESHOLDS.ACTIVITY_WINDOW_SIZE
+          ) {
             this.activityWindow.shift()
           }
 
@@ -169,7 +179,9 @@ class RendererMicCaptureManager {
         timestampMs: Date.now(),
         audioContextState: this.audioContext.state,
         inputDeviceLabel: this.stream?.getAudioTracks()[0]?.label ?? '',
-        phase: JSON.stringify(this.stream?.getAudioTracks()[0]?.getSettings() ?? {}),
+        phase: JSON.stringify(
+          this.stream?.getAudioTracks()[0]?.getSettings() ?? {},
+        ),
       })
     }
     catch (error) {
@@ -189,7 +201,10 @@ class RendererMicCaptureManager {
     // Analyze full audio with energy-based VAD
     if (this.vadConfig.enabled) {
       // Concatenate full audio
-      const totalLength = this.fullAudioSamples.reduce((sum, arr) => sum + arr.length, 0)
+      const totalLength = this.fullAudioSamples.reduce(
+        (sum, arr) => sum + arr.length,
+        0,
+      )
       const fullAudio = new Float32Array(totalLength)
       let offset = 0
       for (const chunk of this.fullAudioSamples) {
@@ -211,7 +226,10 @@ class RendererMicCaptureManager {
       }
 
       if (shouldCancel) {
-        console.log('[VAD] No valid speech detected, requesting silent cancel', { durationMs })
+        console.log(
+          '[VAD] No valid speech detected, requesting silent cancel',
+          { durationMs },
+        )
         window.api.voice.requestSilentCancel?.()
       }
       else {
@@ -269,7 +287,10 @@ class RendererMicCaptureManager {
     return Math.sqrt(sum / input.length)
   }
 
-  private resampleTo16kPcm16(input: Float32Array, inputRate: number): Int16Array {
+  private resampleTo16kPcm16(
+    input: Float32Array,
+    inputRate: number,
+  ): Int16Array {
     if (input.length === 0 || inputRate <= 0)
       return new Int16Array(0)
 
@@ -320,7 +341,9 @@ class RendererMicCaptureManager {
 
   private floatToInt16(sample: number): number {
     const clamped = Math.max(-1, Math.min(1, sample))
-    return clamped < 0 ? Math.round(clamped * 32768) : Math.round(clamped * 32767)
+    return clamped < 0
+      ? Math.round(clamped * 32768)
+      : Math.round(clamped * 32767)
   }
 
   private int16ToBase64(data: Int16Array): string {

@@ -27,11 +27,16 @@ function formatTime(seconds: number): string {
   return `${minutes}:${String(remain).padStart(2, '0')}`
 }
 
-const progressValue = computed(() => (seeking.value ? seekValue.value : currentTime.value))
+const progressValue = computed(() =>
+  seeking.value ? seekValue.value : currentTime.value,
+)
 const progressPercent = computed(() => {
   if (duration.value <= 0)
     return 0
-  return Math.min(100, Math.max(0, (progressValue.value / duration.value) * 100))
+  return Math.min(
+    100,
+    Math.max(0, (progressValue.value / duration.value) * 100),
+  )
 })
 
 async function togglePlay(): Promise<void> {
@@ -50,7 +55,10 @@ function seekBy(offset: number): void {
   const audio = audioRef.value
   if (!audio || !Number.isFinite(audio.duration))
     return
-  const next = Math.min(audio.duration, Math.max(0, audio.currentTime + offset))
+  const next = Math.min(
+    audio.duration,
+    Math.max(0, audio.currentTime + offset),
+  )
   audio.currentTime = next
   currentTime.value = next
 }
@@ -156,9 +164,13 @@ async function loadAudio(): Promise<void> {
   audioSrc.value = objectUrl
 }
 
-watch(() => props.audioPath, () => {
-  void loadAudio()
-}, { immediate: true })
+watch(
+  () => props.audioPath,
+  () => {
+    void loadAudio()
+  },
+  { immediate: true },
+)
 
 onBeforeUnmount(() => {
   audioRef.value?.pause()
@@ -170,7 +182,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="mt-2 rounded-xl border border-yl-line-230 bg-yl-paper-150/80 px-3 py-2.5" @click.stop>
+  <div
+    class="mt-2 rounded-xl border border-yl-line-230 bg-yl-paper-150/80 px-3 py-2.5"
+    @click.stop
+  >
     <audio
       ref="audioRef"
       :src="audioSrc"
@@ -189,10 +204,20 @@ onBeforeUnmount(() => {
         :title="playing ? '暂停' : '播放'"
         @click="togglePlay"
       >
-        <svg v-if="playing" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4 fill-current">
+        <svg
+          v-if="playing"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          class="h-4 w-4 fill-current"
+        >
           <path d="M7 5h4v14H7zM13 5h4v14h-4z" />
         </svg>
-        <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4 fill-current">
+        <svg
+          v-else
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          class="h-4 w-4 fill-current"
+        >
           <path d="M8 5v14l11-7z" />
         </svg>
       </button>
@@ -202,7 +227,11 @@ onBeforeUnmount(() => {
         title="后退5秒"
         @click="seekBy(-5)"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4 fill-current">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          class="h-4 w-4 fill-current"
+        >
           <path d="M11 6v4H6v4h5v4l-7-6zM13 7h5v10h-5v-2h3V9h-3z" />
         </svg>
       </button>
@@ -212,7 +241,11 @@ onBeforeUnmount(() => {
         title="前进5秒"
         @click="seekBy(5)"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4 fill-current">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          class="h-4 w-4 fill-current"
+        >
           <path d="M13 6v4h5v4h-5v4l7-6zM11 7H6v2h3v6H6v2h5z" />
         </svg>
       </button>

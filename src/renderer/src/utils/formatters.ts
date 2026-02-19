@@ -33,7 +33,9 @@ export function sourceLabel(source: TranscriptSource): string {
 export function isToday(timestamp: number): boolean {
   const d = new Date(timestamp)
   const now = new Date()
-  return d.getFullYear() === now.getFullYear()
+  return (
+    d.getFullYear() === now.getFullYear()
     && d.getMonth() === now.getMonth()
     && d.getDate() === now.getDate()
+  )
 }

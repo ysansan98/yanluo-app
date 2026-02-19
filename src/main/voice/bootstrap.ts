@@ -1,6 +1,8 @@
 import type { WebContents } from 'electron'
+import type { SettingsStore } from '../settingsStore'
 import type {
   HotkeyManager,
+  PermissionChecker,
   SessionOrchestrator,
   VoiceUiFinalPayload,
   VoiceUiShowPayload,
@@ -9,14 +11,22 @@ import type {
 } from './types'
 import { RendererAudioCapture } from './audioCapture'
 import { MacGlobalHotkeyManager } from './hotkeyManager'
+import {
+  isHotkeyDisabledGlobally,
+  setHotkeyDisabledGlobally,
+} from './hotkeyState'
 import { MacPermissionChecker } from './permissionChecker'
 import { DefaultSessionOrchestrator } from './sessionOrchestrator'
 import { WsStreamingAsrClient } from './streamingAsrClient'
 import { MacTextInjector } from './textInjector'
 
+export { setHotkeyDisabledGlobally }
+
 interface CreateVoiceRuntimeOptions {
   asrBaseUrl: string
   getTargetWebContents: () => WebContents | null
+  getMainWindow: () => import('electron').BrowserWindow | null
+  settingsStore: SettingsStore
   onUiShow: (payload: VoiceUiShowPayload) => void
   onUiUpdate: (payload: VoiceUiUpdatePayload) => void
   onUiFinal: (payload: VoiceUiFinalPayload) => void
@@ -27,12 +37,19 @@ interface CreateVoiceRuntimeOptions {
 interface VoiceRuntime {
   hotkeyManager: HotkeyManager
   sessionOrchestrator: SessionOrchestrator
+  permissionChecker: PermissionChecker
 }
 
-export function createVoiceRuntime(options: CreateVoiceRuntimeOptions): VoiceRuntime {
+export function createVoiceRuntime(
+  options: CreateVoiceRuntimeOptions,
+): VoiceRuntime {
   const hotkeyManager = new MacGlobalHotkeyManager({
     log: (message, extra) => {
       console.info(`[voice-hotkey] ${message}`, extra ?? {})
+    },
+    // 在事件源头检查是否应该处理（用于 onboarding 设置快捷键时临时禁用）
+    shouldProcess: () => {
+      return !isHotkeyDisabledGlobally()
     },
   })
   const audioCapture = new RendererAudioCapture({
@@ -55,6 +72,8 @@ export function createVoiceRuntime(options: CreateVoiceRuntimeOptions): VoiceRun
     asrClient,
     textInjector,
     permissionChecker,
+    settingsStore: options.settingsStore,
+    getMainWindow: options.getMainWindow,
     enableHotkey: true,
     onUiShow: options.onUiShow,
     onUiUpdate: options.onUiUpdate,
@@ -66,8 +85,12 @@ export function createVoiceRuntime(options: CreateVoiceRuntimeOptions): VoiceRun
     },
   })
 
+  // 注意：热键事件已在 SessionOrchestrator.bindEvents() 中绑定
+  // 这里不需要重复绑定，避免绕过 shouldProcess 检查
+
   return {
     hotkeyManager,
     sessionOrchestrator,
+    permissionChecker,
   }
 }

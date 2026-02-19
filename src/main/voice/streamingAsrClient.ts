@@ -33,11 +33,16 @@ export class WsStreamingAsrClient implements StreamingAsrClient {
   private acceptingAudio = false
 
   private readonly wsUrl: string
-  private readonly log: (message: string, extra?: Record<string, unknown>) => void
+  private readonly log: (
+    message: string,
+    extra?: Record<string, unknown>,
+  ) => void
 
   constructor(options: StreamingAsrClientOptions) {
     this.wsUrl = options.wsUrl
-    this.log = options.log ?? ((message, extra) => console.info(`[voice-asr] ${message}`, extra ?? {}))
+    this.log
+      = options.log
+        ?? ((message, extra) => console.info(`[voice-asr] ${message}`, extra ?? {}))
   }
 
   async connect(): Promise<void> {
@@ -92,7 +97,9 @@ export class WsStreamingAsrClient implements StreamingAsrClient {
           ws.close()
         }
         catch {}
-        const err = new Error('Timed out while connecting streaming ASR websocket')
+        const err = new Error(
+          'Timed out while connecting streaming ASR websocket',
+        )
         this.connecting = null
         reject(err)
       }, 3000)
@@ -142,7 +149,10 @@ export class WsStreamingAsrClient implements StreamingAsrClient {
     this.ws = null
     this.connecting = null
 
-    if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+    if (
+      ws.readyState === WebSocket.OPEN
+      || ws.readyState === WebSocket.CONNECTING
+    ) {
       ws.close()
     }
   }
@@ -178,7 +188,11 @@ export class WsStreamingAsrClient implements StreamingAsrClient {
       const text = typeof raw === 'string' ? raw : String(raw)
       const msg = JSON.parse(text) as ServerMessage
 
-      if (msg.type === 'partial' && msg.sessionId && typeof msg.text === 'string') {
+      if (
+        msg.type === 'partial'
+        && msg.sessionId
+        && typeof msg.text === 'string'
+      ) {
         this.partialHandler?.({
           sessionId: msg.sessionId,
           text: msg.text,
@@ -187,7 +201,11 @@ export class WsStreamingAsrClient implements StreamingAsrClient {
         return
       }
 
-      if (msg.type === 'final' && msg.sessionId && typeof msg.text === 'string') {
+      if (
+        msg.type === 'final'
+        && msg.sessionId
+        && typeof msg.text === 'string'
+      ) {
         this.finalHandler?.({
           sessionId: msg.sessionId,
           text: msg.text,

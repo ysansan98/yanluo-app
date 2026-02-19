@@ -4,11 +4,14 @@
     "composite": true,
     "baseUrl": ".",
     "paths": {
-      "~shared/*": [
-        "src/shared/*"
-      ]
+      "~shared/*": ["src/shared/*"]
     },
     "types": ["electron-vite/node"]
   },
-  "include": ["electron.vite.config.*", "src/main/**/*", "src/preload/**/*", "src/shared/**/*"]
+  "include": [
+    "electron.vite.config.*",
+    "src/main/**/*",
+    "src/preload/**/*",
+    "src/shared/**/*"
+  ]
 }

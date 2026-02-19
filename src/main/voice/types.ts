@@ -9,10 +9,22 @@ export type VoiceSessionState
     | 'DONE'
     | 'FAILED'
 
-export type VoiceOverlayStatus = 'arming' | 'recording' | 'finalizing' | 'success' | 'error'
+export type VoiceOverlayStatus
+  = | 'arming'
+    | 'recording'
+    | 'finalizing'
+    | 'success'
+    | 'error'
 export type InjectMode = 'PASTE' | 'CLIPBOARD_ONLY'
-export type PermissionKind = 'MICROPHONE' | 'ACCESSIBILITY' | 'INPUT_MONITORING'
-export type PermissionStatus = 'GRANTED' | 'DENIED' | 'NOT_DETERMINED' | 'RESTRICTED'
+export type PermissionKind
+  = | 'MICROPHONE'
+    | 'ACCESSIBILITY'
+    | 'INPUT_MONITORING'
+export type PermissionStatus
+  = | 'GRANTED'
+    | 'DENIED'
+    | 'NOT_DETERMINED'
+    | 'RESTRICTED'
 
 export type VoiceErrorCode
   = | 'E_MIC_PERMISSION'

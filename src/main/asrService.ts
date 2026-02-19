@@ -2,7 +2,11 @@ import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import { spawn } from 'node:child_process'
 import process from 'node:process'
 import { getModelDir, getModelId } from './modelManager'
-import { buildPythonEnv, getAsrServiceDir, resolvePythonCmd } from './pythonEnv'
+import {
+  buildPythonEnv,
+  getAsrServiceDir,
+  resolvePythonCmd,
+} from './pythonEnv'
 
 const DEFAULT_PORT = 8790
 
@@ -32,7 +36,15 @@ export class AsrService {
 
     this.proc = spawn(
       pythonCmd,
-      ['-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', String(this.port)],
+      [
+        '-m',
+        'uvicorn',
+        'main:app',
+        '--host',
+        '127.0.0.1',
+        '--port',
+        String(this.port),
+      ],
       {
         cwd: asrServiceDir,
         env: buildPythonEnv({
@@ -89,7 +101,11 @@ export class AsrService {
       throw new Error(`ASR failed: ${res.status} ${body}`)
     }
 
-    return (await res.json()) as { text: string, language: string, elapsed_ms?: number }
+    return (await res.json()) as {
+      text: string
+      language: string
+      elapsed_ms?: number
+    }
   }
 
   private async waitUntilReady(): Promise<void> {

@@ -25,7 +25,10 @@ function toggleExpand(id: string) {
 </script>
 
 <template>
-  <div v-if="entries.length === 0" class="rounded-xl border border-dashed border-yl-line-230 bg-yl-paper-100 p-4 text-sm text-yl-muted-380">
+  <div
+    v-if="entries.length === 0"
+    class="rounded-xl border border-dashed border-yl-line-230 bg-yl-paper-100 p-4 text-sm text-yl-muted-380"
+  >
     <slot name="empty">
       {{ emptyText }}
     </slot>

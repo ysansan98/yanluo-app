@@ -91,4 +91,5 @@ export const VAD_CONFIG_IPC = {
 
 export type VoiceIpcChannel = (typeof VOICE_IPC)[keyof typeof VOICE_IPC]
 export type AudioIpcChannel = (typeof AUDIO_IPC)[keyof typeof AUDIO_IPC]
-export type VadConfigIpcChannel = (typeof VAD_CONFIG_IPC)[keyof typeof VAD_CONFIG_IPC]
+export type VadConfigIpcChannel
+  = (typeof VAD_CONFIG_IPC)[keyof typeof VAD_CONFIG_IPC]

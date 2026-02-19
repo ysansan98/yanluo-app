@@ -33,7 +33,10 @@ interface AudioErrorPayload {
 
 export class RendererAudioCapture implements AudioCapture {
   private readonly getTargetWebContents: () => WebContents | null
-  private readonly log: (message: string, extra?: Record<string, unknown>) => void
+  private readonly log: (
+    message: string,
+    extra?: Record<string, unknown>,
+  ) => void
 
   private chunkHandler: ((chunk: AudioChunk) => void) | null = null
   private silentCancelHandlers: Array<() => void> = []
@@ -42,7 +45,10 @@ export class RendererAudioCapture implements AudioCapture {
 
   constructor(options: RendererAudioCaptureOptions) {
     this.getTargetWebContents = options.getTargetWebContents
-    this.log = options.log ?? ((message, extra) => console.info(`[audio-capture] ${message}`, extra ?? {}))
+    this.log
+      = options.log
+        ?? ((message, extra) =>
+          console.info(`[audio-capture] ${message}`, extra ?? {}))
   }
 
   async start(): Promise<void> {
@@ -104,7 +110,9 @@ export class RendererAudioCapture implements AudioCapture {
     })
 
     ipcMain.on(AUDIO_IPC.ERROR, (_event, payload: AudioErrorPayload) => {
-      this.log('renderer capture error', { message: payload?.message ?? 'unknown' })
+      this.log('renderer capture error', {
+        message: payload?.message ?? 'unknown',
+      })
     })
 
     ipcMain.on(AUDIO_IPC.VAD_SILENT_CANCEL, () => {

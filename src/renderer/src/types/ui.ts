@@ -1,4 +1,10 @@
-export type MenuKey = 'home' | 'workbench' | 'polish' | 'provider' | 'settings' | 'about'
+export type MenuKey
+  = | 'home'
+    | 'workbench'
+    | 'polish'
+    | 'provider'
+    | 'settings'
+    | 'about'
 
 export type TranscriptSource = 'file' | 'live'
 export type HistoryEntryType = 'asr_only' | 'polish'

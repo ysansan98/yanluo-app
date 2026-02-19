@@ -87,7 +87,8 @@ export function useAsrPage(options: UseAsrPageOptions) {
         language.value.trim() || undefined,
       )
       lastResponseJson.value = JSON.stringify(res, null, 2)
-      resultText.value = typeof res.text === 'string' ? res.text : String(res.text ?? '')
+      resultText.value
+        = typeof res.text === 'string' ? res.text : String(res.text ?? '')
       resultLanguage.value = res.language
       transcriptElapsedMs.value = Number(res.elapsed_ms ?? 0)
       transcriptChars.value = resultText.value.length
@@ -103,7 +104,10 @@ export function useAsrPage(options: UseAsrPageOptions) {
         audioPath: filePath.value,
       })
       await nextTick()
-      options.resultCardRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      options.resultCardRef.value?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
     }
     catch (err) {
       lastResponseJson.value = ''
@@ -119,7 +123,9 @@ export function useAsrPage(options: UseAsrPageOptions) {
         status.value = 'ASR service ready'
       }
       else {
-        status.value = res.model_error ? `ASR error: ${res.model_error}` : 'ASR loading...'
+        status.value = res.model_error
+          ? `ASR error: ${res.model_error}`
+          : 'ASR loading...'
       }
     }
     catch (err) {
@@ -215,7 +221,8 @@ export function useAsrPage(options: UseAsrPageOptions) {
         livePartialText.value = ''
         liveFinalText.value = ''
         liveElapsedMs.value = 0
-        liveStatus.value = payload.status === 'arming' ? 'Arming microphone...' : 'Recording...'
+        liveStatus.value
+          = payload.status === 'arming' ? 'Arming microphone...' : 'Recording...'
         liveIsRecording.value = true
       }),
     )
@@ -226,7 +233,8 @@ export function useAsrPage(options: UseAsrPageOptions) {
           liveFinalText.value = ''
         }
         liveIsRecording.value = payload.status !== 'finalizing'
-        liveStatus.value = payload.status === 'finalizing' ? 'Finalizing...' : 'Recording...'
+        liveStatus.value
+          = payload.status === 'finalizing' ? 'Finalizing...' : 'Recording...'
         livePartialText.value = payload.partialText
         liveElapsedMs.value = payload.elapsedMs
       }),
@@ -234,7 +242,10 @@ export function useAsrPage(options: UseAsrPageOptions) {
     voiceUnsubscribers.push(
       window.api.voice.onFinal((payload) => {
         liveIsRecording.value = false
-        liveStatus.value = payload.mode === 'pasted' ? 'Done (pasted)' : 'Done (copied to clipboard)'
+        liveStatus.value
+          = payload.mode === 'pasted'
+            ? 'Done (pasted)'
+            : 'Done (copied to clipboard)'
         liveFinalText.value = payload.finalText
         resultText.value = payload.finalText
         options.onTranscriptCreated?.({
@@ -257,13 +268,15 @@ export function useAsrPage(options: UseAsrPageOptions) {
     )
 
     // Listen for VAD config updates from other windows
-    const unsubscribeVadUpdate = window.api.voice.onVadConfigUpdated?.((config) => {
-      vadEnabled.value = config.enabled
-      vadThresholdInput.value = String(config.threshold)
-      vadMinSpeechMsInput.value = String(config.minSpeechMs)
-      vadRedemptionMsInput.value = String(config.redemptionMs)
-      vadMinDurationMsInput.value = String(config.minDurationMs)
-    })
+    const unsubscribeVadUpdate = window.api.voice.onVadConfigUpdated?.(
+      (config) => {
+        vadEnabled.value = config.enabled
+        vadThresholdInput.value = String(config.threshold)
+        vadMinSpeechMsInput.value = String(config.minSpeechMs)
+        vadRedemptionMsInput.value = String(config.redemptionMs)
+        vadMinDurationMsInput.value = String(config.minDurationMs)
+      },
+    )
     if (unsubscribeVadUpdate) {
       voiceUnsubscribers.push(unsubscribeVadUpdate)
     }

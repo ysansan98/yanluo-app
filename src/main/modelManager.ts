@@ -1,4 +1,5 @@
 import type { BrowserWindow } from 'electron'
+import type { Buffer } from 'node:buffer'
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync } from 'node:fs'
@@ -37,13 +38,26 @@ export function modelExists(): boolean {
     return false
   try {
     const files = readdirSync(dir)
-    const hasConfig = files.includes('configuration.json') || files.includes('config.yaml')
-    const hasWeights = files.includes('model_quant.onnx') || files.includes('model.onnx')
+    const hasConfig
+      = files.includes('configuration.json') || files.includes('config.yaml')
+    const hasWeights
+      = files.includes('model_quant.onnx') || files.includes('model.onnx')
     return hasConfig && hasWeights
   }
   catch {
     return false
   }
+}
+
+export interface DownloadProgress {
+  type: 'start' | 'progress' | 'file_complete' | 'complete' | 'error'
+  filename?: string
+  downloaded?: number
+  total?: number
+  percent?: number
+  message?: string
+  model_id?: string
+  local_dir?: string
 }
 
 export class ModelDownloader {
@@ -61,37 +75,51 @@ export class ModelDownloader {
     const pythonCmd = resolvePythonCmd()
     const modelDir = getModelDir()
 
+    // 使用自定义下载脚本，支持 JSON 进度回调
     this.proc = spawn(
       pythonCmd,
-      ['-m', 'modelscope.cli.cli', 'download', '--model', getModelId(), '--local_dir', modelDir],
+      ['-m', 'download_model', getModelId(), modelDir],
       {
-        cwd: app.getAppPath(),
+        cwd: join(app.getAppPath(), 'services/asr'),
         env: buildPythonEnv(process.env),
         stdio: 'pipe',
       },
     )
 
-    window.webContents.send('asr:downloadLog', { type: 'info', message: 'Download started' })
-
-    this.proc.stdout.on('data', (data) => {
-      window.webContents.send('asr:downloadLog', { type: 'stdout', message: data.toString() })
+    this.proc.stdout.on('data', (data: Buffer) => {
+      const lines = data.toString().trim().split('\n')
+      for (const line of lines) {
+        if (!line.trim())
+          continue
+        try {
+          // 尝试解析 JSON 进度
+          const progress: DownloadProgress = JSON.parse(line)
+          window.webContents.send('asr:downloadProgress', progress)
+        }
+        catch {
+          // 非 JSON 行作为普通日志
+          window.webContents.send('asr:downloadLog', {
+            type: 'stdout',
+            message: line,
+          })
+        }
+      }
     })
 
     this.proc.stderr.on('data', (data) => {
-      window.webContents.send('asr:downloadLog', { type: 'stderr', message: data.toString() })
+      window.webContents.send('asr:downloadLog', {
+        type: 'stderr',
+        message: data.toString(),
+      })
     })
 
     await new Promise<void>((resolve, reject) => {
       this.proc?.on('exit', (code) => {
         const ok = code === 0
-        window.webContents.send('asr:downloadLog', {
-          type: ok ? 'info' : 'error',
-          message: ok ? 'Download finished' : `Download failed with code ${code}`,
-        })
         this.proc = null
         if (ok)
           resolve()
-        else reject(new Error(`modelscope download failed with code ${code}`))
+        else reject(new Error(`model download failed with code ${code}`))
       })
     })
   }

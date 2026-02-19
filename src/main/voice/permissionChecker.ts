@@ -1,4 +1,8 @@
-import type { PermissionChecker, PermissionKind, PermissionStatus } from './types'
+import type {
+  PermissionChecker,
+  PermissionKind,
+  PermissionStatus,
+} from './types'
 import process from 'node:process'
 import { systemPreferences } from 'electron'
 
@@ -8,11 +12,15 @@ export class MacPermissionChecker implements PermissionChecker {
       return 'GRANTED'
 
     if (kind === 'MICROPHONE') {
-      return this.fromMediaStatus(systemPreferences.getMediaAccessStatus('microphone'))
+      return this.fromMediaStatus(
+        systemPreferences.getMediaAccessStatus('microphone'),
+      )
     }
 
     if (kind === 'ACCESSIBILITY') {
-      return systemPreferences.isTrustedAccessibilityClient(false) ? 'GRANTED' : 'DENIED'
+      return systemPreferences.isTrustedAccessibilityClient(false)
+        ? 'GRANTED'
+        : 'DENIED'
     }
 
     return 'NOT_DETERMINED'
@@ -35,13 +43,17 @@ export class MacPermissionChecker implements PermissionChecker {
     }
 
     if (kind === 'ACCESSIBILITY') {
-      return systemPreferences.isTrustedAccessibilityClient(true) ? 'GRANTED' : 'DENIED'
+      return systemPreferences.isTrustedAccessibilityClient(true)
+        ? 'GRANTED'
+        : 'DENIED'
     }
 
     return this.check(kind)
   }
 
-  private fromMediaStatus(status: ReturnType<typeof systemPreferences.getMediaAccessStatus>): PermissionStatus {
+  private fromMediaStatus(
+    status: ReturnType<typeof systemPreferences.getMediaAccessStatus>,
+  ): PermissionStatus {
     if (status === 'granted')
       return 'GRANTED'
     if (status === 'denied')

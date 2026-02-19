@@ -1,13 +1,15 @@
-import type { IGlobalKeyDownMap, IGlobalKeyEvent, IGlobalKeyListener } from 'node-global-key-listener'
-import type { HotkeyManager, VoiceError } from './types'
-import {
-  GlobalKeyboardListener,
-
+import type {
+  IGlobalKeyDownMap,
+  IGlobalKeyEvent,
+  IGlobalKeyListener,
 } from 'node-global-key-listener'
+import type { HotkeyManager, VoiceError } from './types'
+import { GlobalKeyboardListener } from 'node-global-key-listener'
 
 interface HotkeyManagerOptions {
   targetKey?: string
   log?: (message: string, extra?: Record<string, unknown>) => void
+  shouldProcess?: () => boolean
 }
 
 const CTRL_KEYS = ['LEFT CTRL', 'RIGHT CTRL'] as const
@@ -27,7 +29,12 @@ export class MacGlobalHotkeyManager implements HotkeyManager {
   })
 
   private readonly targetKey: string
-  private readonly log: (message: string, extra?: Record<string, unknown>) => void
+  private readonly log: (
+    message: string,
+    extra?: Record<string, unknown>,
+  ) => void
+
+  private readonly shouldProcess: () => boolean
   private readonly listener: IGlobalKeyListener
 
   private started = false
@@ -38,7 +45,10 @@ export class MacGlobalHotkeyManager implements HotkeyManager {
 
   constructor(options: HotkeyManagerOptions = {}) {
     this.targetKey = options.targetKey ?? HOTKEY_KEY
-    this.log = options.log ?? ((message, extra) => console.info(`[hotkey] ${message}`, extra ?? {}))
+    this.log
+      = options.log
+        ?? ((message, extra) => console.info(`[hotkey] ${message}`, extra ?? {}))
+    this.shouldProcess = () => options?.shouldProcess?.() ?? true
     this.listener = (event, isDown) => this.handleEvent(event, isDown)
   }
 
@@ -49,7 +59,9 @@ export class MacGlobalHotkeyManager implements HotkeyManager {
     try {
       await this.keyboard.addListener(this.listener)
       this.started = true
-      this.log('registered global key listener', { combo: `CTRL+${this.targetKey}` })
+      this.log('registered global key listener', {
+        combo: `CTRL+${this.targetKey}`,
+      })
     }
     catch (error) {
       this.emitError({
@@ -69,7 +81,9 @@ export class MacGlobalHotkeyManager implements HotkeyManager {
     this.keyboard.kill()
     this.started = false
     this.reset('stop')
-    this.log('unregistered global key listener', { combo: `CTRL+${this.targetKey}` })
+    this.log('unregistered global key listener', {
+      combo: `CTRL+${this.targetKey}`,
+    })
   }
 
   reset(reason = 'manual-reset'): void {
@@ -93,6 +107,13 @@ export class MacGlobalHotkeyManager implements HotkeyManager {
   }
 
   private handleEvent(event: IGlobalKeyEvent, isDown: IGlobalKeyDownMap): void {
+    // 首先检查是否应该处理此事件（用于 onboarding 设置快捷键时临时禁用）
+    if (!this.shouldProcess()) {
+      return
+    }
+
+    // console.log('[hotkey Maager] exec handleEvent with event:', event, 'isDown:', isDown)
+
     const hasCtrl = CTRL_KEYS.some(key => Boolean(isDown[key]))
     const hasTarget = Boolean(isDown[this.targetKey])
     const comboDown = hasCtrl && hasTarget

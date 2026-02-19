@@ -1,16 +1,12 @@
 import type { HistoryEntry } from '../types/ui'
 import { computed } from 'vue'
-import {
-  formatDuration,
-  formatTime,
-  isToday,
-  sourceLabel,
-} from '../utils'
+import { formatDuration, formatTime, isToday, sourceLabel } from '../utils'
 
 export function useFormatters(historyEntries: { value: HistoryEntry[] }) {
   // Computed stats based on history entries
-  const todayUsageCount = computed(() =>
-    historyEntries.value.filter(item => isToday(item.triggeredAt)).length,
+  const todayUsageCount = computed(
+    () =>
+      historyEntries.value.filter(item => isToday(item.triggeredAt)).length,
   )
 
   const todayChars = computed(() =>

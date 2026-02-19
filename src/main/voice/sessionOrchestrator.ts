@@ -1,3 +1,4 @@
+import type { SettingsStore } from '../settingsStore'
 import type {
   AsrFinalResponse,
   AudioCapture,
@@ -14,6 +15,8 @@ import { Buffer } from 'node:buffer'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { app } from 'electron'
+import { modelExists } from '../modelManager'
+import { isHotkeyDisabledGlobally } from './hotkeyState'
 import { VOICE_TIMEOUT } from './types'
 
 interface SessionOrchestratorDeps {
@@ -22,8 +25,13 @@ interface SessionOrchestratorDeps {
   asrClient: StreamingAsrClient
   textInjector: TextInjector
   permissionChecker: PermissionChecker
+  settingsStore: SettingsStore
+  getMainWindow: () => import('electron').BrowserWindow | null
   enableHotkey?: boolean
-  onUiShow?: (payload: { sessionId: string, status: 'arming' | 'recording' | 'finalizing' }) => void
+  onUiShow?: (payload: {
+    sessionId: string
+    status: 'arming' | 'recording' | 'finalizing'
+  }) => void
   onUiUpdate?: (payload: {
     sessionId: string
     status: 'recording' | 'finalizing'
@@ -37,7 +45,10 @@ interface SessionOrchestratorDeps {
     audioPath: string | null
   }) => void
   onUiHide?: () => void
-  onUiToast?: (payload: { type: 'info' | 'success' | 'warning' | 'error', message: string }) => void
+  onUiToast?: (payload: {
+    type: 'info' | 'success' | 'warning' | 'error'
+    message: string
+  }) => void
   log?: (message: string, extra?: Record<string, unknown>) => void
 }
 
@@ -57,12 +68,17 @@ function createSessionId(): string {
 }
 
 export class DefaultSessionOrchestrator implements SessionOrchestrator {
-  private readonly log: (message: string, extra?: Record<string, unknown>) => void
+  private readonly log: (
+    message: string,
+    extra?: Record<string, unknown>,
+  ) => void
 
   private session: ActiveSession | null = null
   private state: VoiceSessionState = 'IDLE'
 
-  private waitFinalResolver: ((value: AsrFinalResponse | null) => void) | null = null
+  private waitFinalResolver: ((value: AsrFinalResponse | null) => void) | null
+    = null
+
   private waitFinalTimer: NodeJS.Timeout | null = null
   private continueTimer: NodeJS.Timeout | null = null
   private continuingSessionId: string | null = null
@@ -74,7 +90,10 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
   private continueWindowMs: number = VOICE_TIMEOUT.CONTINUE_WINDOW_MS
 
   constructor(private readonly deps: SessionOrchestratorDeps) {
-    this.log = deps.log ?? ((message, extra) => console.info(`[voice-session] ${message}`, extra ?? {}))
+    this.log
+      = deps.log
+        ?? ((message, extra) =>
+          console.info(`[voice-session] ${message}`, extra ?? {}))
   }
 
   async init(): Promise<void> {
@@ -101,13 +120,49 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
   }
 
   setContinueWindowMs(ms: number): void {
-    const next = Number.isFinite(ms) ? Math.round(ms) : VOICE_TIMEOUT.CONTINUE_WINDOW_MS
+    const next = Number.isFinite(ms)
+      ? Math.round(ms)
+      : VOICE_TIMEOUT.CONTINUE_WINDOW_MS
     this.continueWindowMs = Math.min(8000, Math.max(200, next))
-    this.log('continue window updated', { continueWindowMs: this.continueWindowMs })
+    this.log('continue window updated', {
+      continueWindowMs: this.continueWindowMs,
+    })
   }
 
   async handleHotkeyPress(): Promise<void> {
-    if (this.state === 'FINALIZING' && this.session && this.continuingSessionId === this.session.sessionId) {
+    // 最后一道防线：检查全局禁用状态（用于 onboarding 设置快捷键时）
+    if (isHotkeyDisabledGlobally()) {
+      this.log('handleHotkeyPress blocked by global disable flag')
+      return
+    }
+    // 1. 检测模型是否已下载
+    if (!modelExists()) {
+      this.log('model not found, prompting user to download')
+      const mainWindow = this.deps.getMainWindow()
+      mainWindow?.webContents.send('app:modelRequired')
+      this.deps.onUiToast?.({
+        type: 'warning',
+        message: '请先下载语音识别模型',
+      })
+      return
+    }
+
+    // 2. 检测快捷键是否已设置（正常情况下不会触发，因为没设置快捷键无法监听）
+    const shortcut = this.deps.settingsStore.get().shortcuts.pushToTalk
+    if (!shortcut) {
+      this.log('shortcut not set, prompting user to configure')
+      const mainWindow = this.deps.getMainWindow()
+      mainWindow?.webContents.send('app:shortcutRequired')
+      // 在快捷键设置步骤不显示 HUD，避免干扰用户
+      // 只发送事件通知主窗口显示提示
+      return
+    }
+
+    if (
+      this.state === 'FINALIZING'
+      && this.session
+      && this.continuingSessionId === this.session.sessionId
+    ) {
       const sessionId = this.session.sessionId
       if (this.continueTimer) {
         clearTimeout(this.continueTimer)
@@ -134,7 +189,9 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     }
 
     if (this.state !== 'IDLE') {
-      this.log('ignored hotkey press because state is still busy', { state: this.state })
+      this.log('ignored hotkey press because state is still busy', {
+        state: this.state,
+      })
       return
     }
 
@@ -143,7 +200,9 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
       this.preemptedSessionIds.clear()
     }
     const now = Date.now()
-    const carryPrefix = this.shouldMergeCarryAt(now) ? this.pendingCarryText.trim() : ''
+    const carryPrefix = this.shouldMergeCarryAt(now)
+      ? this.pendingCarryText.trim()
+      : ''
     this.clearPendingCarry()
     this.session = {
       sessionId,
@@ -162,9 +221,13 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     this.deps.onUiShow?.({ sessionId, status: 'arming' })
 
     try {
-      const micPermission = await this.deps.permissionChecker.ensureOrPrompt('MICROPHONE')
+      const micPermission
+        = await this.deps.permissionChecker.ensureOrPrompt('MICROPHONE')
       if (micPermission === 'DENIED' || micPermission === 'RESTRICTED') {
-        throw this.makeError('E_MIC_PERMISSION', `Microphone permission is ${micPermission.toLowerCase()}`)
+        throw this.makeError(
+          'E_MIC_PERMISSION',
+          `Microphone permission is ${micPermission.toLowerCase()}`,
+        )
       }
 
       await this.deps.asrClient.connect()
@@ -196,13 +259,18 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     }
 
     if (this.state !== 'STREAMING') {
-      this.log('ignored hotkey release due to state guard', { state: this.state })
+      this.log('ignored hotkey release due to state guard', {
+        state: this.state,
+      })
       return
     }
 
     const session = this.session
     if (!session) {
-      await this.fail(this.makeError('E_ASR_CONNECT', 'Missing active session on release'), 'release-no-session')
+      await this.fail(
+        this.makeError('E_ASR_CONNECT', 'Missing active session on release'),
+        'release-no-session',
+      )
       return
     }
     const sessionId = session.sessionId
@@ -320,7 +388,10 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
       const isMetaTensorError
         = err.message.toLowerCase().includes('meta tensor')
           || err.message.toLowerCase().includes('cannot copy out of meta tensor')
-      if (isMetaTensorError && (this.state === 'STREAMING' || this.state === 'FINALIZING')) {
+      if (
+        isMetaTensorError
+        && (this.state === 'STREAMING' || this.state === 'FINALIZING')
+      ) {
         this.log('ignore recoverable ASR meta tensor error in active session', {
           state: this.state,
           code: err.code,
@@ -329,10 +400,13 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
         return
       }
       if (this.state === 'FINALIZING') {
-        this.log('ignore ASR error during finalizing and wait for fallback path', {
-          code: err.code,
-          message: err.message,
-        })
+        this.log(
+          'ignore ASR error during finalizing and wait for fallback path',
+          {
+            code: err.code,
+            message: err.message,
+          },
+        )
         return
       }
       void this.fail(err, 'asr-error', this.session?.sessionId)
@@ -341,7 +415,9 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
 
   private handleFinal(msg: AsrFinalResponse): void {
     if (!this.session || msg.sessionId !== this.session.sessionId) {
-      this.log('ignored final from stale session', { sessionId: msg.sessionId })
+      this.log('ignored final from stale session', {
+        sessionId: msg.sessionId,
+      })
       return
     }
 
@@ -385,10 +461,16 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
 
       let carry = this.session?.partialText?.trim() ?? ''
       if (!carry) {
-        carry = await this.waitForPreemptCarry(currentSessionId, VOICE_TIMEOUT.PREEMPT_CARRY_WAIT_MS)
+        carry = await this.waitForPreemptCarry(
+          currentSessionId,
+          VOICE_TIMEOUT.PREEMPT_CARRY_WAIT_MS,
+        )
       }
       if (carry) {
-        this.pendingCarryText = this.mergeCarryText(this.pendingCarryText, carry)
+        this.pendingCarryText = this.mergeCarryText(
+          this.pendingCarryText,
+          carry,
+        )
         this.pendingCarryAt = Date.now()
         this.log('cached partial from preempted session', {
           sessionId: currentSessionId,
@@ -420,14 +502,19 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
       await this.deps.asrClient.end(session.sessionId)
 
       const final = await this.waitForFinal(VOICE_TIMEOUT.FINAL_MS)
-      if (this.isSessionPreempted(sessionId) || !this.isSessionCurrent(sessionId)) {
+      if (
+        this.isSessionPreempted(sessionId)
+        || !this.isSessionCurrent(sessionId)
+      ) {
         this.log('finalize canceled due to session preemption', { sessionId })
         return
       }
 
       // Check again if silent cancel was requested while waiting
       if (session.silentCancelRequested) {
-        this.log('session silently canceled while waiting for final', { sessionId })
+        this.log('session silently canceled while waiting for final', {
+          sessionId,
+        })
         return
       }
 
@@ -443,7 +530,9 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
         }
         else {
           // Silent cancel for empty result
-          this.log('final timeout with empty partial, silently canceling', { sessionId })
+          this.log('final timeout with empty partial, silently canceling', {
+            sessionId,
+          })
           await this.cleanupSession('asr-empty-timeout', sessionId)
           this.transition('IDLE')
           this.deps.onUiHide?.()
@@ -461,7 +550,10 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
         }
         else {
           // Silent cancel for empty result
-          this.log('empty final result with empty partial, silently canceling', { sessionId })
+          this.log(
+            'empty final result with empty partial, silently canceling',
+            { sessionId },
+          )
           await this.cleanupSession('asr-empty-final', sessionId)
           this.transition('IDLE')
           this.deps.onUiHide?.()
@@ -485,8 +577,13 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
         return
       }
 
-      if (this.isSessionPreempted(sessionId) || !this.isSessionCurrent(sessionId)) {
-        this.log('finalize stopped before inject due to session preemption', { sessionId })
+      if (
+        this.isSessionPreempted(sessionId)
+        || !this.isSessionCurrent(sessionId)
+      ) {
+        this.log('finalize stopped before inject due to session preemption', {
+          sessionId,
+        })
         return
       }
 
@@ -498,14 +595,20 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
       session.metrics.injectedAt = Date.now()
 
       if (!injectResult.ok) {
-        throw this.makeError('E_INJECT_FAILED', injectResult.reason ?? 'Injection failed')
+        throw this.makeError(
+          'E_INJECT_FAILED',
+          injectResult.reason ?? 'Injection failed',
+        )
       }
       this.transition('DONE', {
         sessionId: session.sessionId,
         mode: injectResult.mode,
         elapsedMs: session.metrics.injectedAt - session.metrics.startedAt,
       })
-      const audioPath = this.persistAudioToWav(session.sessionId, session.audioChunks)
+      const audioPath = this.persistAudioToWav(
+        session.sessionId,
+        session.audioChunks,
+      )
       this.deps.onUiFinal?.({
         sessionId: session.sessionId,
         finalText: resolvedText,
@@ -537,7 +640,11 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     })
   }
 
-  private async fail(error: unknown, phase: string, sessionId?: string): Promise<void> {
+  private async fail(
+    error: unknown,
+    phase: string,
+    sessionId?: string,
+  ): Promise<void> {
     if (sessionId && this.preemptedSessionIds.has(sessionId)) {
       this.log('ignore fail from preempted session', { phase, sessionId })
       return
@@ -561,8 +668,15 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     this.failing = false
   }
 
-  private async cleanupSession(reason: string, expectedSessionId?: string): Promise<void> {
-    if (expectedSessionId && this.session && this.session.sessionId !== expectedSessionId) {
+  private async cleanupSession(
+    reason: string,
+    expectedSessionId?: string,
+  ): Promise<void> {
+    if (
+      expectedSessionId
+      && this.session
+      && this.session.sessionId !== expectedSessionId
+    ) {
       this.log('skip cleanup for stale session', {
         reason,
         expectedSessionId,
@@ -603,7 +717,10 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     this.session = null
   }
 
-  private transition(state: VoiceSessionState, extra: Record<string, unknown> = {}): void {
+  private transition(
+    state: VoiceSessionState,
+    extra: Record<string, unknown> = {},
+  ): void {
     this.state = state
     if (this.session) {
       this.session.state = state
@@ -623,11 +740,13 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
   }
 
   private isVoiceError(error: unknown): error is VoiceError {
-    return typeof error === 'object'
+    return (
+      typeof error === 'object'
       && error !== null
       && 'code' in error
       && 'message' in error
       && 'recoverable' in error
+    )
   }
 
   private makeError(code: VoiceError['code'], message: string): VoiceError {
@@ -663,7 +782,10 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     this.pendingCarryAt = null
   }
 
-  private async waitForPreemptCarry(sessionId: string, timeoutMs: number): Promise<string> {
+  private async waitForPreemptCarry(
+    sessionId: string,
+    timeoutMs: number,
+  ): Promise<string> {
     const startedAt = Date.now()
     while (Date.now() - startedAt <= timeoutMs) {
       if (!this.isSessionCurrent(sessionId))
@@ -680,7 +802,10 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     await new Promise(resolve => setTimeout(resolve, ms))
   }
 
-  private persistAudioToWav(sessionId: string, chunks: Buffer[]): string | null {
+  private persistAudioToWav(
+    sessionId: string,
+    chunks: Buffer[],
+  ): string | null {
     try {
       const audioDir = join(app.getPath('userData'), 'audio')
       if (!existsSync(audioDir)) {
