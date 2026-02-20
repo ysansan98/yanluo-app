@@ -188,13 +188,28 @@ function extractTarGz(tarPath, destDir) {
  */
 function ensurePip(pythonPath) {
   try {
-    // 检查 pip 是否可用
-    execSync(`"${pythonPath}" -m pip --version`, { stdio: 'ignore' })
+    // 用 import 校验 pip 模块是否真实可用，避免仅残留 dist-info 造成误判
+    execSync(`"${pythonPath}" -c "import pip"`, { stdio: 'ignore' })
     console.log('pip already installed')
     return
   }
   catch {
     console.log('Installing pip...')
+    // 先清理可能残留的 pip 元数据，避免 ensurepip 误判“已安装”
+    const sitePackagesCandidates = [
+      path.join(__dirname, '..', 'resources', 'python', 'lib', 'python3.12', 'site-packages'),
+      path.join(__dirname, '..', 'resources', 'python', 'Lib', 'site-packages'),
+    ]
+    for (const sitePackages of sitePackagesCandidates) {
+      if (!fs.existsSync(sitePackages))
+        continue
+      for (const entry of fs.readdirSync(sitePackages)) {
+        if (entry === 'pip' || entry.startsWith('pip-') || entry.startsWith('pip_')) {
+          fs.rmSync(path.join(sitePackages, entry), { recursive: true, force: true })
+        }
+      }
+    }
+
     // 使用 ensurepip 安装 pip
     try {
       execSync(`"${pythonPath}" -m ensurepip --upgrade`, { stdio: 'inherit' })

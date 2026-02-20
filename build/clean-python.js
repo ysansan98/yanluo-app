@@ -187,8 +187,14 @@ function main() {
       }
     }
 
-    // 删除 pip
+    // 删除 pip（包含包本体和元数据），避免后续 ensurepip 误判“已安装”
     safeRemove(path.join(sitePackages, 'pip'))
+    const siteEntries = fs.readdirSync(sitePackages)
+    for (const entry of siteEntries) {
+      if (entry === 'pip' || entry.startsWith('pip-') || entry.startsWith('pip_')) {
+        safeRemove(path.join(sitePackages, entry))
+      }
+    }
 
     // 删除 __pycache__
     function removePycache(dir) {
