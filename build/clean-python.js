@@ -130,8 +130,7 @@ function main() {
     for (const entry of entries) {
       const matched = legacyPrefixPatterns.some(prefix =>
         entry === prefix
-        || entry.startsWith(`${prefix}-`)
-        || entry.startsWith(`${prefix}_`)
+        || entry.startsWith(prefix)
       )
       if (matched) {
         safeRemove(path.join(sitePackages, entry))
@@ -167,6 +166,26 @@ function main() {
     // 删除 onnx 的 backend 和 bin
     safeRemove(path.join(sitePackages, 'onnx', 'backend'))
     safeRemove(path.join(sitePackages, 'onnx', 'bin'))
+
+    // modelscope 仅用于 snapshot_download，裁剪训练/推理相关大目录
+    const modelscopeDir = path.join(sitePackages, 'modelscope')
+    if (fs.existsSync(modelscopeDir)) {
+      const modelscopeHeavyDirs = [
+        'models',
+        'pipelines',
+        'trainers',
+        'preprocessors',
+        'ops',
+        'metrics',
+        'exporters',
+        'server',
+        'cli',
+        'msdatasets',
+      ]
+      for (const dir of modelscopeHeavyDirs) {
+        safeRemove(path.join(modelscopeDir, dir))
+      }
+    }
 
     // 删除 pip
     safeRemove(path.join(sitePackages, 'pip'))
