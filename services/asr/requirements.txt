@@ -1,9 +1,8 @@
 numpy<2
-librosa==0.10.2
 fastapi==0.115.6
 uvicorn[standard]==0.30.6
-funasr-onnx==0.4.1
-onnxruntime==1.23.2
+sherpa-onnx>=1.12.24
+onnx>=1.20.0
 modelscope>=1.16.0
 setuptools<81
-soxr>=0.4.0
+soundfile>=0.13.1
