@@ -6,7 +6,7 @@ export default antfu(
     vue: true,
   },
   {
-    files: ['src/**/*.ts', 'src/**/*.vue'],
+    files: ['src/**/*.ts', 'src/**/*.vue', '**/*.js'],
     rules: {
       'no-console': 'off',
     },
