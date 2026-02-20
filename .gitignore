@@ -26,3 +26,8 @@ services/asr/build/
 services/asr/dist/
 services/asr/models/
 services/asr/shims/**/*.egg-info/
+
+# Python embedded environment (for packaging)
+resources/python/
+!resources/icon.png
+temp/
