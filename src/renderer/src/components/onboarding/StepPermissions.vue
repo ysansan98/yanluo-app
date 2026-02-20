@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import AppActionButton from '../AppActionButton.vue'
 
 type PermissionStatus = 'GRANTED' | 'DENIED' | 'NOT_DETERMINED' | 'RESTRICTED'
@@ -46,7 +46,23 @@ const error = ref('')
 // 只检测状态，显示给用户，不自动触发完成
 onMounted(async () => {
   await checkAllPermissions()
+  // 监听窗口聚焦事件，用户从系统设置返回时立即检测
+  window.addEventListener('focus', handleWindowFocus)
 })
+
+onUnmounted(() => {
+  window.removeEventListener('focus', handleWindowFocus)
+})
+
+// 窗口聚焦时检测权限
+async function handleWindowFocus() {
+  // 只检测尚未授权的权限
+  const hasPending = permissions.value.some(p => p.status !== 'GRANTED')
+  if (hasPending) {
+    await checkAllPermissions()
+    checkIfAllGranted()
+  }
+}
 
 async function checkAllPermissions() {
   for (const perm of permissions.value) {

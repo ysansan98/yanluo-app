@@ -38,6 +38,10 @@ interface VoiceRuntime {
   hotkeyManager: HotkeyManager
   sessionOrchestrator: SessionOrchestrator
   permissionChecker: PermissionChecker
+  /**
+   * 延迟初始化热键（在引导完成后调用，避免启动时立即请求辅助功能权限）
+   */
+  initHotkey: () => Promise<void>
 }
 
 export function createVoiceRuntime(
@@ -92,5 +96,11 @@ export function createVoiceRuntime(
     hotkeyManager,
     sessionOrchestrator,
     permissionChecker,
+    /**
+     * 延迟初始化热键（在引导完成后调用，避免启动时立即请求辅助功能权限）
+     */
+    initHotkey: async () => {
+      await sessionOrchestrator.initHotkey?.()
+    },
   }
 }

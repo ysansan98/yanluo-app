@@ -165,12 +165,16 @@ export interface PermissionChecker {
 
 export interface SessionOrchestrator {
   // Coordinates hotkey, audio, ASR and injection modules.
-  init: () => Promise<void>
+  init: (options?: { delayHotkey?: boolean }) => Promise<void>
   dispose: () => Promise<void>
   handleHotkeyPress: () => Promise<void>
   handleHotkeyRelease: () => Promise<void>
   getContinueWindowMs?: () => number
   setContinueWindowMs?: (ms: number) => void
+  /**
+   * 延迟初始化热键（在引导完成后调用，避免启动时立即请求辅助功能权限）
+   */
+  initHotkey?: () => Promise<void>
 }
 
 export const VOICE_TIMEOUT = {

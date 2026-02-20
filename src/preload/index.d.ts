@@ -103,6 +103,7 @@ interface ShortcutApi {
   set: (shortcut: string | null) => Promise<{ ok: boolean }>
   disableGlobal: () => Promise<{ ok: boolean }>
   enableGlobal: () => Promise<{ ok: boolean }>
+  initHotkey: () => Promise<{ ok: boolean }>
 }
 
 interface AppEventApi {

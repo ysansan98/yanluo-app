@@ -77,6 +77,7 @@ const api = {
       ipcRenderer.invoke('shortcut:disableGlobal')
     },
     enableGlobal: () => ipcRenderer.invoke('shortcut:enableGlobal'),
+    initHotkey: () => ipcRenderer.invoke('shortcut:initHotkey'),
   },
   // 应用级事件
   app: {

@@ -20,6 +20,10 @@ interface CreateMainAppHandlersOptions {
   createMainWindow: () => BrowserWindow
   getMainWindow: () => BrowserWindow | null
   setMainWindow: (window: BrowserWindow) => void
+  /**
+   * 延迟初始化热键（在引导完成后调用，避免启动时立即请求辅助功能权限）
+   */
+  initHotkey?: () => Promise<void>
 }
 
 interface MainAppHandlers {
@@ -44,6 +48,8 @@ export function createMainAppHandlers(
     voiceHudManager,
   } = options
 
+  const { initHotkey } = options
+
   return {
     onReady: () => {
       setupMediaPermissionHandlers()
@@ -56,6 +62,14 @@ export function createMainAppHandlers(
         settingsStore,
         permissionChecker,
         getMainWindow,
+        onOnboardingComplete: () => {
+          // 引导完成后初始化热键
+          if (initHotkey) {
+            void initHotkey().catch((err) => {
+              console.error('Failed to initialize hotkey after onboarding:', err)
+            })
+          }
+        },
       })
 
       asrService.start().catch((err) => {
@@ -64,7 +78,8 @@ export function createMainAppHandlers(
       sessionOrchestrator.setContinueWindowMs?.(
         settingsStore.get().voice.continueWindowMs,
       )
-      sessionOrchestrator.init().catch((err) => {
+      // 延迟热键初始化，避免启动时立即请求辅助功能权限
+      sessionOrchestrator.init({ delayHotkey: true }).catch((err) => {
         console.error('Failed to initialize voice session orchestrator:', err)
       })
 
@@ -78,6 +93,22 @@ export function createMainAppHandlers(
           mainWindow.webContents.send('app:showOnboarding')
         })
       }
+
+      // 延迟初始化热键，避免启动时立即请求辅助功能权限
+      // 如果引导已完成，页面加载后延迟初始化；如果引导未完成，在引导完成后通过回调初始化
+      if (onboardingConfig.completed) {
+        // 引导已完成，页面加载后延迟 2 秒初始化热键
+        mainWindow.webContents.once('did-finish-load', () => {
+          setTimeout(() => {
+            if (initHotkey) {
+              void initHotkey().catch((err) => {
+                console.error('Failed to initialize hotkey:', err)
+              })
+            }
+          }, 2000)
+        })
+      }
+      // 如果引导未完成，onOnboardingComplete 回调会在引导完成后调用 initHotkey
 
       // 通过 VoiceHudManager 初始化 HUD（唯一入口）
       voiceHudManager.init()

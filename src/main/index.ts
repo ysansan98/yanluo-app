@@ -21,7 +21,7 @@ let mainWindow: BrowserWindow | null = null
  */
 const voiceHudManager = new VoiceHudManager()
 
-const { hotkeyManager, sessionOrchestrator, permissionChecker }
+const { hotkeyManager, sessionOrchestrator, permissionChecker, initHotkey }
   = createVoiceRuntime({
     asrBaseUrl: asrService.baseUrl,
     getTargetWebContents: () => mainWindow?.webContents ?? null,
@@ -57,6 +57,7 @@ const appHandlers = createMainAppHandlers({
   settingsStore,
   permissionChecker,
   voiceHudManager, // 传递 Manager 而不是 Controller
+  initHotkey, // 延迟初始化热键，避免启动时立即请求辅助功能权限
   createMainWindow: () => createMainWindow({ icon: undefined }),
   getMainWindow: () => {
     if (!mainWindow || mainWindow.isDestroyed())

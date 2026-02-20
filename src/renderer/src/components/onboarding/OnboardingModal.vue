@@ -73,8 +73,12 @@ async function completeOnboarding() {
   emit('close')
 }
 
-function nextStep() {
+async function nextStep() {
   if (currentStepIndex.value < steps.length - 1) {
+    // 如果是从快捷键步骤进入测试步骤，先初始化热键
+    if (currentStep.value.id === 'shortcut') {
+      await window.api.shortcut.initHotkey()
+    }
     currentStepIndex.value++
   }
   else {

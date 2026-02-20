@@ -96,13 +96,41 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
           console.info(`[voice-session] ${message}`, extra ?? {}))
   }
 
-  async init(): Promise<void> {
+  /**
+   * 初始化会话编排器
+   * @param options.delayHotkey 是否延迟热键初始化（避免启动时立即请求辅助功能权限）
+   */
+  async init(options?: { delayHotkey?: boolean }): Promise<void> {
     this.bindEvents()
-    if (this.deps.enableHotkey ?? true) {
+    // 默认延迟热键初始化，避免应用启动时立即请求辅助功能权限
+    const shouldDelayHotkey = options?.delayHotkey ?? true
+    if ((this.deps.enableHotkey ?? true) && !shouldDelayHotkey) {
       await this.deps.hotkeyManager.start()
       this.hotkeyBound = true
     }
-    this.log('initialized')
+    this.log('initialized', { hotkeyDelayed: shouldDelayHotkey })
+  }
+
+  /**
+   * 延迟初始化热键（在引导完成后调用）
+   */
+  async initHotkey(): Promise<void> {
+    if (this.hotkeyBound)
+      return
+    if (!(this.deps.enableHotkey ?? true))
+      return
+
+    try {
+      await this.deps.hotkeyManager.start()
+      this.hotkeyBound = true
+      this.log('hotkey initialized (delayed)')
+    }
+    catch (error) {
+      this.log('failed to initialize hotkey', {
+        error: error instanceof Error ? error.message : String(error),
+      })
+      // 热键初始化失败不应阻塞应用，用户仍可通过界面按钮使用语音功能
+    }
   }
 
   async dispose(): Promise<void> {

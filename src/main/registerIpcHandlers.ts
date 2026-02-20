@@ -19,6 +19,10 @@ interface RegisterIpcHandlersOptions {
   settingsStore: SettingsStore
   permissionChecker: PermissionChecker
   getMainWindow: () => BrowserWindow | null
+  /**
+   * 引导完成后的回调，用于初始化热键等操作
+   */
+  onOnboardingComplete?: () => void
 }
 
 export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
@@ -30,6 +34,7 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
     sessionOrchestrator,
     settingsStore,
     permissionChecker,
+    onOnboardingComplete,
   } = options
 
   ipcMain.on('ping', () => console.warn('pong'))
@@ -198,6 +203,8 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
 
   ipcMain.handle('onboarding:complete', async () => {
     settingsStore.completeOnboarding()
+    // 调用回调函数，通知引导已完成（用于延迟初始化热键等操作）
+    onOnboardingComplete?.()
     return { ok: true as const }
   })
 
@@ -247,6 +254,15 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
   ipcMain.handle('shortcut:enableGlobal', async () => {
     const { setHotkeyDisabledGlobally } = await import('./voice/hotkeyState')
     setHotkeyDisabledGlobally(false)
+    return { ok: true as const }
+  })
+
+  // 初始化热键（用于引导流程中快捷键设置完成后）
+  ipcMain.handle('shortcut:initHotkey', async () => {
+    console.log('[ipc] handle shortcut:initHotkey called')
+    if (onOnboardingComplete) {
+      await onOnboardingComplete()
+    }
     return { ok: true as const }
   })
 }
