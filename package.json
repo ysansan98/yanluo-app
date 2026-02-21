@@ -1,9 +1,12 @@
 {
   "name": "yanluo-app",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "An Electron application with Vue and TypeScript",
-  "author": "example.com",
-  "homepage": "https://electron-vite.org",
+  "author": {
+    "name": "Ysansan",
+    "email": "ysansan.tech@icloud.com"
+  },
+  "homepage": "https://github.com/ysansan98/yanluo-app",
   "main": "./out/main/index.js",
   "scripts": {
     "format": "prettier --write .",
