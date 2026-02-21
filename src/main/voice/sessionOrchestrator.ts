@@ -157,33 +157,41 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     })
   }
 
-  async handleHotkeyPress(): Promise<void> {
+  async handleHotkeyPress(options?: {
+    skipPrerequisiteChecks?: boolean
+    testUiOnly?: boolean
+  }): Promise<void> {
+    const skipPrerequisiteChecks = options?.skipPrerequisiteChecks === true
+    const testUiOnly = options?.testUiOnly === true
+
     // 最后一道防线：检查全局禁用状态（用于 onboarding 设置快捷键时）
     if (isHotkeyDisabledGlobally()) {
       this.log('handleHotkeyPress blocked by global disable flag')
       return
     }
-    // 1. 检测模型是否已下载
-    if (!modelExists()) {
-      this.log('model not found, prompting user to download')
-      const mainWindow = this.deps.getMainWindow()
-      mainWindow?.webContents.send('app:modelRequired')
-      this.deps.onUiToast?.({
-        type: 'warning',
-        message: '请先下载语音识别模型',
-      })
-      return
-    }
+    if (!skipPrerequisiteChecks) {
+      // 1. 检测模型是否已下载
+      if (!modelExists()) {
+        this.log('model not found, prompting user to download')
+        const mainWindow = this.deps.getMainWindow()
+        mainWindow?.webContents.send('app:modelRequired')
+        this.deps.onUiToast?.({
+          type: 'warning',
+          message: '请先下载语音识别模型',
+        })
+        return
+      }
 
-    // 2. 检测快捷键是否已设置（正常情况下不会触发，因为没设置快捷键无法监听）
-    const shortcut = this.deps.settingsStore.get().shortcuts.pushToTalk
-    if (!shortcut) {
-      this.log('shortcut not set, prompting user to configure')
-      const mainWindow = this.deps.getMainWindow()
-      mainWindow?.webContents.send('app:shortcutRequired')
-      // 在快捷键设置步骤不显示 HUD，避免干扰用户
-      // 只发送事件通知主窗口显示提示
-      return
+      // 2. 检测快捷键是否已设置（正常情况下不会触发，因为没设置快捷键无法监听）
+      const shortcut = this.deps.settingsStore.get().shortcuts.pushToTalk
+      if (!shortcut) {
+        this.log('shortcut not set, prompting user to configure')
+        const mainWindow = this.deps.getMainWindow()
+        mainWindow?.webContents.send('app:shortcutRequired')
+        // 在快捷键设置步骤不显示 HUD，避免干扰用户
+        // 只发送事件通知主窗口显示提示
+        return
+      }
     }
 
     if (
@@ -247,6 +255,11 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     }
     this.transition('ARMING', { sessionId })
     this.deps.onUiShow?.({ sessionId, status: 'arming' })
+
+    if (testUiOnly) {
+      this.log('test-ui-only hotkey press simulated', { sessionId })
+      return
+    }
 
     try {
       const micPermission

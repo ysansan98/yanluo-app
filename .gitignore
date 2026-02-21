@@ -12,6 +12,8 @@ out
 .DS_Store
 .eslintcache
 *.log*
+playwright-report/
+test-results/
 
 # Python ASR service local state
 services/asr/.venv/

@@ -97,6 +97,13 @@ const api = {
       return () => ipcRenderer.removeListener('app:shortcutRequired', listener)
     },
   },
+  ...(process.env.NODE_ENV === 'test'
+    ? {
+        test: {
+          triggerShortcutHub: () => ipcRenderer.invoke('test:shortcut:triggerHub'),
+        },
+      }
+    : {}),
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

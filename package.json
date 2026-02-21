@@ -25,7 +25,11 @@
     "python:clean": "node build/clean-python.js",
     "python:verify": "node build/verify-package.js",
     "build:full": "pnpm run python:prepare && pnpm run build && electron-builder",
-    "build:full:verify": "pnpm run build:full && pnpm run python:verify"
+    "build:full:verify": "pnpm run build:full && pnpm run python:verify",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:e2e": "pnpm run build && playwright test",
+    "test:all": "pnpm run test:unit && pnpm run test:e2e"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
@@ -41,6 +45,7 @@
     "@electron-toolkit/eslint-config-ts": "^3.1.0",
     "@electron-toolkit/tsconfig": "^2.0.0",
     "@electron/rebuild": "^4.0.3",
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/vite": "^4.1.18",
     "@types/node": "^22.19.1",
     "@vitejs/plugin-vue": "^6.0.2",
@@ -50,10 +55,12 @@
     "electron-vite": "^5.0.0",
     "eslint": "^10.0.0",
     "eslint-plugin-vue": "^10.6.2",
+    "playwright": "^1.58.2",
     "prettier": "^3.7.4",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.9.3",
     "vite": "^7.2.6",
+    "vitest": "^4.0.18",
     "vue": "^3.5.25",
     "vue-eslint-parser": "^10.2.0",
     "vue-tsc": "^3.1.6"

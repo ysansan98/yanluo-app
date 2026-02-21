@@ -26,5 +26,8 @@ interface Window {
       pickAudioFile: () => Promise<string | null>
     }
     voice: VoiceApi
+    test?: {
+      triggerShortcutHub: () => Promise<{ ok: true }>
+    }
   }
 }

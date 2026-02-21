@@ -7,6 +7,7 @@ import type { SettingsStore } from './settingsStore'
 import type { PermissionChecker, SessionOrchestrator } from './voice/types'
 import { existsSync, readFileSync } from 'node:fs'
 import { extname } from 'node:path'
+import process from 'node:process'
 import { dialog, ipcMain } from 'electron'
 import { VAD_CONFIG_IPC } from '~shared/voice'
 import { getModelDir, getModelId, modelExists } from './modelManager'
@@ -265,4 +266,15 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
     }
     return { ok: true as const }
   })
+
+  // E2E 测试专用：模拟系统级快捷键触发（仅在 NODE_ENV=test 下启用）
+  if (process.env.NODE_ENV === 'test') {
+    ipcMain.handle('test:shortcut:triggerHub', async () => {
+      await sessionOrchestrator.handleHotkeyPress({
+        skipPrerequisiteChecks: true,
+        testUiOnly: true,
+      })
+      return { ok: true as const }
+    })
+  }
 }

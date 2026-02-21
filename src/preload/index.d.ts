@@ -120,6 +120,9 @@ interface AppApi {
   permission: PermissionApi
   shortcut: ShortcutApi
   app: AppEventApi
+  test?: {
+    triggerShortcutHub: () => Promise<{ ok: true }>
+  }
 }
 
 declare global {

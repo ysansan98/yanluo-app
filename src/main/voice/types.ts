@@ -167,7 +167,10 @@ export interface SessionOrchestrator {
   // Coordinates hotkey, audio, ASR and injection modules.
   init: (options?: { delayHotkey?: boolean }) => Promise<void>
   dispose: () => Promise<void>
-  handleHotkeyPress: () => Promise<void>
+  handleHotkeyPress: (options?: {
+    skipPrerequisiteChecks?: boolean
+    testUiOnly?: boolean
+  }) => Promise<void>
   handleHotkeyRelease: () => Promise<void>
   getContinueWindowMs?: () => number
   setContinueWindowMs?: (ms: number) => void
