@@ -16,6 +16,11 @@ export function registerAppLifecycle(
   app.whenReady().then(async () => {
     electronApp.setAppUserModelId('com.electron')
 
+    if (process.platform === 'darwin') {
+      app.setActivationPolicy('regular')
+      app.dock?.show()
+    }
+
     app.on('browser-window-created', (_, window) => {
       optimizer.watchWindowShortcuts(window)
       options.onBrowserWindowCreated?.(window)

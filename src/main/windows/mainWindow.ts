@@ -2,7 +2,7 @@ import type { NativeImage } from 'electron'
 import { join } from 'node:path'
 import process from 'node:process'
 import { is } from '@electron-toolkit/utils'
-import { BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, shell } from 'electron'
 
 interface CreateMainWindowOptions {
   icon?: NativeImage | string
@@ -15,6 +15,7 @@ export function createMainWindow(
     width: 900,
     height: 670,
     show: false,
+    skipTaskbar: false,
     autoHideMenuBar: true,
     ...(process.platform === 'darwin'
       ? {
@@ -30,6 +31,15 @@ export function createMainWindow(
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+    if (process.platform === 'darwin') {
+      app.dock?.show()
+    }
+  })
+
+  mainWindow.on('closed', () => {
+    if (process.platform === 'darwin') {
+      app.dock?.hide()
+    }
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {

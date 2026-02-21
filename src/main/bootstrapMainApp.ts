@@ -5,9 +5,10 @@ import type { ModelDownloader } from './modelManager'
 import type { SettingsStore } from './settingsStore'
 import type { PermissionChecker, SessionOrchestrator } from './voice/types'
 import type { VoiceHudManager } from './voiceHud/voiceHudManager'
-import { screen } from 'electron'
+import { app, screen } from 'electron'
 import { setupMediaPermissionHandlers } from './permissions/mediaPermissions'
 import { registerIpcHandlers } from './registerIpcHandlers'
+import { StatusBarTray } from './statusBarTray'
 
 interface CreateMainAppHandlersOptions {
   asrService: AsrService
@@ -49,6 +50,7 @@ export function createMainAppHandlers(
   } = options
 
   const { initHotkey } = options
+  const statusBarTray = new StatusBarTray()
 
   return {
     onReady: () => {
@@ -85,6 +87,15 @@ export function createMainAppHandlers(
 
       const mainWindow = createMainWindow()
       setMainWindow(mainWindow)
+      statusBarTray.create({
+        getMainWindow,
+        createMainWindow,
+        setMainWindow,
+        onQuit: () => {
+          statusBarTray.destroy()
+          app.quit()
+        },
+      })
 
       // 检查是否需要显示引导页
       const onboardingConfig = settingsStore.get().onboarding
@@ -127,6 +138,7 @@ export function createMainAppHandlers(
       // 如果需要重新创建，VoiceHudManager 会在 ensureVisible 时自动处理
     },
     onBeforeQuit: () => {
+      statusBarTray.destroy()
       // 通过 VoiceHudManager 销毁 HUD（唯一入口）
       voiceHudManager.dispose()
       asrService.stop()
