@@ -1,5 +1,6 @@
 import type { VadConfig } from '~shared/voice'
 import { DEFAULT_VAD_CONFIG, VAD_ENERGY_THRESHOLDS } from '~shared/voice'
+import { MIC_DEVICE_STORAGE_KEY } from '../constants/audio'
 
 const TARGET_SAMPLE_RATE = 16000
 
@@ -59,6 +60,51 @@ class RendererMicCaptureManager {
     }
   }
 
+  private resolveSelectedMicrophoneId(): string | null {
+    try {
+      const selected = localStorage.getItem(MIC_DEVICE_STORAGE_KEY)
+      return selected && selected.trim() ? selected : null
+    }
+    catch {
+      return null
+    }
+  }
+
+  private async createInputStream(): Promise<MediaStream> {
+    const baseConstraints: MediaTrackConstraints = {
+      channelCount: 1,
+      echoCancellation: false,
+    }
+    const preferredDeviceId = this.resolveSelectedMicrophoneId()
+
+    if (!preferredDeviceId) {
+      return navigator.mediaDevices.getUserMedia({
+        audio: baseConstraints,
+        video: false,
+      })
+    }
+
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        audio: {
+          ...baseConstraints,
+          deviceId: { exact: preferredDeviceId },
+        },
+        video: false,
+      })
+    }
+    catch (error) {
+      // Device may be unplugged or no longer available, fallback to system default.
+      if (error instanceof DOMException && error.name === 'OverconstrainedError') {
+        localStorage.removeItem(MIC_DEVICE_STORAGE_KEY)
+      }
+      return navigator.mediaDevices.getUserMedia({
+        audio: baseConstraints,
+        video: false,
+      })
+    }
+  }
+
   dispose(): void {
     this.stopAudioStartListener?.()
     this.stopAudioStopListener?.()
@@ -74,13 +120,7 @@ class RendererMicCaptureManager {
       return
 
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          echoCancellation: false,
-        },
-        video: false,
-      })
+      this.stream = await this.createInputStream()
 
       this.audioContext = new AudioContext()
       if (this.audioContext.state === 'suspended') {

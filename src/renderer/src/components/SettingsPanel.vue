@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { MIC_DEVICE_STORAGE_KEY } from '../constants/audio'
 import AppActionButton from './AppActionButton.vue'
 
 interface Props {
@@ -14,6 +15,14 @@ interface Props {
   vadMinSpeechMsInput: string
   vadRedemptionMsInput: string
   vadMinDurationMsInput: string
+}
+
+type PermissionStatus = 'GRANTED' | 'DENIED' | 'NOT_DETERMINED' | 'RESTRICTED'
+type PermissionKind = 'MICROPHONE' | 'ACCESSIBILITY'
+
+interface MicrophoneDevice {
+  deviceId: string
+  label: string
 }
 
 const props = defineProps<Props>()
@@ -44,10 +53,163 @@ const modelExists = ref(false)
 const isDownloading = ref(false)
 const downloadProgress = ref<DownloadProgress>({ type: '' })
 const modelDir = ref('')
+const microphoneDevices = ref<MicrophoneDevice[]>([])
+const selectedMicDeviceId = ref('')
+const isLoadingMicrophones = ref(false)
+const microphoneError = ref('')
+const micPermissionStatus = ref<PermissionStatus>('NOT_DETERMINED')
+const accessibilityPermissionStatus = ref<PermissionStatus>('NOT_DETERMINED')
+const isCheckingPermissions = ref(false)
+const isRequestingPermission = ref<PermissionKind | null>(null)
+const permissionError = ref('')
 
 let unsubscribeProgress: (() => void) | null = null
 
+function getPermissionLabel(status: PermissionStatus, fallback: string): string {
+  switch (status) {
+    case 'GRANTED':
+      return '已授权'
+    case 'DENIED':
+      return '已拒绝'
+    case 'RESTRICTED':
+      return '受限'
+    case 'NOT_DETERMINED':
+      return '未授权'
+    default:
+      return fallback
+  }
+}
+
+const micPermissionHintText = computed(() =>
+  getPermissionLabel(micPermissionStatus.value, props.micPermissionHint),
+)
+
+const accessibilityPermissionHintText = computed(() =>
+  getPermissionLabel(
+    accessibilityPermissionStatus.value,
+    props.accessibilityPermissionHint,
+  ),
+)
+
+async function refreshPermissionStatus(): Promise<void> {
+  isCheckingPermissions.value = true
+  permissionError.value = ''
+  try {
+    const [microphone, accessibility] = await Promise.all([
+      window.api.permission.check('MICROPHONE'),
+      window.api.permission.check('ACCESSIBILITY'),
+    ])
+    micPermissionStatus.value = microphone
+    accessibilityPermissionStatus.value = accessibility
+  }
+  catch (error) {
+    console.error('Failed to check permissions:', error)
+    permissionError.value = '权限状态获取失败，请稍后重试'
+  }
+  finally {
+    isCheckingPermissions.value = false
+  }
+}
+
+async function requestPermission(kind: PermissionKind): Promise<void> {
+  isRequestingPermission.value = kind
+  permissionError.value = ''
+  try {
+    const status = await window.api.permission.request(kind)
+    if (kind === 'MICROPHONE') {
+      micPermissionStatus.value = status
+      await refreshMicrophoneDevices({ requestAccess: status === 'GRANTED' })
+    }
+    else {
+      accessibilityPermissionStatus.value = status
+    }
+  }
+  catch (error) {
+    console.error(`Failed to request ${kind} permission:`, error)
+    permissionError.value = '权限请求失败，请前往系统设置手动开启'
+  }
+  finally {
+    isRequestingPermission.value = null
+  }
+}
+
+async function refreshMicrophoneDevices(options?: {
+  requestAccess?: boolean
+}): Promise<void> {
+  isLoadingMicrophones.value = true
+  microphoneError.value = ''
+  try {
+    if (!navigator.mediaDevices?.enumerateDevices) {
+      microphoneError.value = '当前环境不支持麦克风设备枚举'
+      return
+    }
+
+    if (!navigator.mediaDevices.getUserMedia) {
+      microphoneError.value = '当前环境不支持麦克风访问'
+      return
+    }
+
+    if (options?.requestAccess) {
+      // 在用户主动操作时申请一次音频流，保证设备 label 可读取。
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: false,
+      })
+      stream.getTracks().forEach(track => track.stop())
+    }
+
+    const devices = await navigator.mediaDevices.enumerateDevices()
+    const audioInputs = devices
+      .filter(device => device.kind === 'audioinput')
+      .map((device, index) => ({
+        deviceId: device.deviceId,
+        label: device.label || `麦克风 ${index + 1}`,
+      }))
+
+    microphoneDevices.value = audioInputs
+
+    if (!audioInputs.find(device => device.deviceId === selectedMicDeviceId.value)) {
+      selectedMicDeviceId.value = ''
+      localStorage.removeItem(MIC_DEVICE_STORAGE_KEY)
+    }
+
+    if (options?.requestAccess && micPermissionStatus.value !== 'GRANTED') {
+      micPermissionStatus.value = 'GRANTED'
+    }
+  }
+  catch (error) {
+    console.error('Failed to enumerate microphone devices:', error)
+    microphoneDevices.value = []
+    if (error instanceof DOMException && error.name === 'NotAllowedError') {
+      micPermissionStatus.value = 'DENIED'
+      microphoneError.value = '未获得麦克风权限，请先授权'
+    }
+    else {
+      microphoneError.value = '获取麦克风设备失败，请重试'
+    }
+  }
+  finally {
+    isLoadingMicrophones.value = false
+  }
+}
+
+function handleMicrophoneSelect(event: Event): void {
+  const value = (event.target as HTMLSelectElement).value
+  selectedMicDeviceId.value = value
+  if (!value) {
+    localStorage.removeItem(MIC_DEVICE_STORAGE_KEY)
+    return
+  }
+  localStorage.setItem(MIC_DEVICE_STORAGE_KEY, value)
+}
+
+function handleWindowFocus(): void {
+  void refreshPermissionStatus()
+}
+
 onMounted(async () => {
+  selectedMicDeviceId.value = localStorage.getItem(MIC_DEVICE_STORAGE_KEY) ?? ''
+
   // 获取模型信息
   const info = await window.api.asr.modelInfo()
   modelExists.value = info.exists
@@ -68,10 +230,15 @@ onMounted(async () => {
       isDownloading.value = false
     }
   })
+
+  await refreshPermissionStatus()
+  await refreshMicrophoneDevices()
+  window.addEventListener('focus', handleWindowFocus)
 })
 
 onUnmounted(() => {
   unsubscribeProgress?.()
+  window.removeEventListener('focus', handleWindowFocus)
 })
 
 async function startDownload() {
@@ -315,12 +482,36 @@ onUnmounted(() => {
         </div>
         <select
           class="mt-2 w-full rounded-lg border border-yl-line-300 bg-white px-3 py-2 text-sm text-yl-ink-450"
-          disabled
+          :value="selectedMicDeviceId"
+          :disabled="isLoadingMicrophones || microphoneDevices.length === 0"
+          @change="handleMicrophoneSelect"
         >
-          <option>默认输入设备（待接入设备列表）</option>
+          <option value="">
+            系统默认输入设备
+          </option>
+          <option
+            v-for="device in microphoneDevices"
+            :key="device.deviceId"
+            :value="device.deviceId"
+          >
+            {{ device.label }}
+          </option>
         </select>
-        <div class="mt-2 text-xs text-yl-muted-390">
-          设备枚举和切换逻辑待接入。
+        <div class="mt-2 flex items-center gap-2">
+          <AppActionButton
+            variant="outline"
+            size="sm"
+            :loading="isLoadingMicrophones"
+            @click="refreshMicrophoneDevices({ requestAccess: true })"
+          >
+            刷新设备
+          </AppActionButton>
+          <span class="text-xs text-yl-muted-390">
+            {{ microphoneDevices.length }} 个可用输入设备
+          </span>
+        </div>
+        <div v-if="microphoneError" class="mt-2 text-xs text-red-500">
+          {{ microphoneError }}
         </div>
       </article>
     </section>
@@ -333,13 +524,44 @@ onUnmounted(() => {
           权限检测
         </div>
         <div class="mt-2 space-y-2 text-sm text-yl-ink-450">
-          <div class="rounded-xl border border-yl-line-180 bg-yl-paper-250 p-3">
-            麦克风：{{ props.micPermissionHint }}
+          <div class="rounded-xl border border-yl-line-180 bg-yl-paper-250 p-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <span>麦克风：{{ micPermissionHintText }}</span>
+              <AppActionButton
+                variant="outline"
+                size="sm"
+                :loading="isRequestingPermission === 'MICROPHONE'"
+                @click="requestPermission('MICROPHONE')"
+              >
+                请求授权
+              </AppActionButton>
+            </div>
           </div>
-          <div class="rounded-xl border border-yl-line-180 bg-yl-paper-250 p-3">
-            辅助功能（用于粘贴识别结果）：{{
-              props.accessibilityPermissionHint
-            }}
+          <div class="rounded-xl border border-yl-line-180 bg-yl-paper-250 p-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <span>辅助功能（用于粘贴识别结果）：{{ accessibilityPermissionHintText }}</span>
+              <AppActionButton
+                variant="outline"
+                size="sm"
+                :loading="isRequestingPermission === 'ACCESSIBILITY'"
+                @click="requestPermission('ACCESSIBILITY')"
+              >
+                请求授权
+              </AppActionButton>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <AppActionButton
+              variant="outline"
+              size="sm"
+              :loading="isCheckingPermissions"
+              @click="refreshPermissionStatus"
+            >
+              重新检测
+            </AppActionButton>
+          </div>
+          <div v-if="permissionError" class="text-xs text-red-500">
+            {{ permissionError }}
           </div>
         </div>
       </article>
