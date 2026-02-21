@@ -1,4 +1,5 @@
 import type { BrowserWindow } from 'electron'
+import { VOICE_IPC } from '~shared/voice'
 import { registerAppLifecycle } from './appLifecycle'
 import { AsrService } from './asrService'
 import { createMainAppHandlers } from './bootstrapMainApp'
@@ -15,6 +16,12 @@ const modelDownloader = new ModelDownloader()
 const settingsStore = new SettingsStore()
 let mainWindow: BrowserWindow | null = null
 
+function sendToMainWindow(channel: string, payload?: unknown): void {
+  if (!mainWindow || mainWindow.isDestroyed())
+    return
+  mainWindow.webContents.send(channel, payload)
+}
+
 /**
  * Voice HUD 管理器（唯一入口）
  * 所有 HUD 操作必须通过此类
@@ -29,6 +36,7 @@ const { hotkeyManager, sessionOrchestrator, permissionChecker, initHotkey }
     settingsStore,
     onUiShow: (payload) => {
       voiceHudManager.show(payload)
+      sendToMainWindow(VOICE_IPC.UI_SHOW, payload)
     },
     onUiUpdate: (payload) => {
       if (payload.status === 'recording') {
@@ -37,15 +45,19 @@ const { hotkeyManager, sessionOrchestrator, permissionChecker, initHotkey }
       else {
         voiceHudManager.updateFinalizing(payload)
       }
+      sendToMainWindow(VOICE_IPC.UI_UPDATE, payload)
     },
     onUiFinal: (payload) => {
       voiceHudManager.showFinal(payload)
+      sendToMainWindow(VOICE_IPC.UI_FINAL, payload)
     },
     onUiHide: () => {
       voiceHudManager.hide(300, 'session-end')
+      sendToMainWindow(VOICE_IPC.UI_HIDE)
     },
     onUiToast: (payload) => {
       voiceHudManager.showToast(payload)
+      sendToMainWindow(VOICE_IPC.UI_TOAST, payload)
     },
   })
 
