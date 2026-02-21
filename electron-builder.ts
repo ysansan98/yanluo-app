@@ -1,13 +1,5 @@
 /* eslint-disable no-template-curly-in-string */
-import type { AfterPackContext, Configuration } from 'electron-builder'
-import * as fs from 'node:fs/promises'
-import * as path from 'node:path'
-
-/**
- * 保留的语言列表
- * 只保留英语，删除其他多语言文件以减小包体积
- */
-const keepLanguages = new Set(['en'])
+import type { Configuration } from 'electron-builder'
 
 /**
  * Electron Builder 配置
@@ -16,7 +8,7 @@ const keepLanguages = new Set(['en'])
  * @see https://www.electron.build/configuration/configuration
  */
 const config: Configuration = {
-  appId: 'com.electron.app',
+  appId: 'com.yanluo.app',
   productName: '言落',
   electronLanguages: ['en-US'],
 
@@ -115,10 +107,10 @@ const config: Configuration = {
     extendInfo: {
       CFBundleName: '言落',
       CFBundleDisplayName: '言落',
-      NSCameraUsageDescription: "Application requests access to the device's camera.",
-      NSMicrophoneUsageDescription: "Application requests access to the device's microphone.",
-      NSDocumentsFolderUsageDescription: "Application requests access to the user's Documents folder.",
-      NSDownloadsFolderUsageDescription: "Application requests access to the user's Downloads folder.",
+      NSCameraUsageDescription: 'Application requests access to the device\'s camera.',
+      NSMicrophoneUsageDescription: 'Application requests access to the device\'s microphone.',
+      NSDocumentsFolderUsageDescription: 'Application requests access to the user\'s Documents folder.',
+      NSDownloadsFolderUsageDescription: 'Application requests access to the user\'s Downloads folder.',
     },
     notarize: false,
   },

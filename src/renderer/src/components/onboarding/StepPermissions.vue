@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onUnmounted, ref } from 'vue'
 import AppActionButton from '../AppActionButton.vue'
 
 type PermissionStatus = 'GRANTED' | 'DENIED' | 'NOT_DETERMINED' | 'RESTRICTED'
@@ -42,36 +42,53 @@ const permissions = ref<PermissionState[]>([
 
 const isRequesting = ref<PermissionKind | null>(null)
 const error = ref('')
-
-// 只检测状态，显示给用户，不自动触发完成
-onMounted(async () => {
-  await checkAllPermissions()
-  // 监听窗口聚焦事件，用户从系统设置返回时立即检测
-  window.addEventListener('focus', handleWindowFocus)
-})
+let isWatchingAccessibilityFocus = false
 
 onUnmounted(() => {
-  window.removeEventListener('focus', handleWindowFocus)
+  stopAccessibilityFocusWatch()
 })
 
-// 窗口聚焦时检测权限
 async function handleWindowFocus() {
-  // 只检测尚未授权的权限
-  const hasPending = permissions.value.some(p => p.status !== 'GRANTED')
-  if (hasPending) {
-    await checkAllPermissions()
-    checkIfAllGranted()
+  if (!isWatchingAccessibilityFocus)
+    return
+
+  try {
+    const status = await window.api.permission.check('ACCESSIBILITY')
+    const perm = permissions.value.find(p => p.kind === 'ACCESSIBILITY')
+    if (perm) {
+      perm.status = status
+    }
+
+    if (status === 'GRANTED') {
+      stopAccessibilityFocusWatch()
+      checkIfAllGranted()
+    }
+  }
+  catch {
+    // 保持当前状态，等待用户再次返回应用后重试检测
   }
 }
 
-async function checkAllPermissions() {
-  for (const perm of permissions.value) {
-    try {
-      perm.status = await window.api.permission.check(perm.kind)
-    }
-    catch {
-      perm.status = 'NOT_DETERMINED'
-    }
+function startAccessibilityFocusWatch() {
+  if (isWatchingAccessibilityFocus)
+    return
+
+  window.addEventListener('focus', handleWindowFocus)
+  isWatchingAccessibilityFocus = true
+}
+
+function stopAccessibilityFocusWatch() {
+  if (!isWatchingAccessibilityFocus)
+    return
+
+  window.removeEventListener('focus', handleWindowFocus)
+  isWatchingAccessibilityFocus = false
+}
+
+function updatePermissionStatus(kind: PermissionKind, status: PermissionStatus) {
+  const perm = permissions.value.find(p => p.kind === kind)
+  if (perm) {
+    perm.status = status
   }
 }
 
@@ -80,9 +97,13 @@ async function requestPermission(kind: PermissionKind) {
   error.value = ''
   try {
     const status = await window.api.permission.request(kind)
-    const perm = permissions.value.find(p => p.kind === kind)
-    if (perm) {
-      perm.status = status
+    updatePermissionStatus(kind, status)
+
+    if (kind === 'ACCESSIBILITY') {
+      if (status === 'GRANTED')
+        stopAccessibilityFocusWatch()
+      else
+        startAccessibilityFocusWatch()
     }
 
     // 检查是否全部授权完成，如果是则触发完成
