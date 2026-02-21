@@ -6,6 +6,7 @@
 
 const fs = require('node:fs')
 const path = require('node:path')
+const process = require('node:process')
 
 const PYTHON_DIR = path.join(__dirname, '..', 'resources', 'python')
 
@@ -130,7 +131,7 @@ function main() {
     for (const entry of entries) {
       const matched = legacyPrefixPatterns.some(prefix =>
         entry === prefix
-        || entry.startsWith(prefix)
+        || entry.startsWith(prefix),
       )
       if (matched) {
         safeRemove(path.join(sitePackages, entry))

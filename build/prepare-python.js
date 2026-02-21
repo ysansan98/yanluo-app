@@ -13,6 +13,7 @@ const { execSync } = require('node:child_process')
 const fs = require('node:fs')
 const https = require('node:https')
 const path = require('node:path')
+const process = require('node:process')
 
 // Python 版本和平台配置
 const PYTHON_VERSION = '3.12.8'
@@ -191,7 +192,6 @@ function ensurePip(pythonPath) {
     // 用 import 校验 pip 模块是否真实可用，避免仅残留 dist-info 造成误判
     execSync(`"${pythonPath}" -c "import pip"`, { stdio: 'ignore' })
     console.log('pip already installed')
-    return
   }
   catch {
     console.log('Installing pip...')
@@ -215,16 +215,16 @@ function ensurePip(pythonPath) {
       execSync(`"${pythonPath}" -m ensurepip --upgrade`, { stdio: 'inherit' })
       console.log('pip installed successfully')
     }
-    catch (error) {
+    catch {
       // ensurepip 可能不可用，尝试下载 get-pip.py
       console.log('ensurepip failed, trying get-pip.py...')
-      const https = require('node:https')
       const fs = require('node:fs')
+      const https = require('node:https')
       const os = require('node:os')
       const path = require('node:path')
-      
+
       const getPipPath = path.join(os.tmpdir(), 'get-pip.py')
-      
+
       return new Promise((resolve, reject) => {
         const file = fs.createWriteStream(getPipPath)
         https.get('https://bootstrap.pypa.io/get-pip.py', (response) => {
@@ -285,7 +285,7 @@ function installDependencies(pythonPath, asrServiceDir) {
       },
     })
   }
-  catch (error) {
+  catch {
     // 如果失败，尝试强制使用 binary（优先保障 sherpa/onnx 可用）
     console.log('\n⚠️  Failed with --prefer-binary, trying with --only-binary for core packages...')
 
@@ -301,7 +301,7 @@ function installDependencies(pythonPath, asrServiceDir) {
       indexUrlArg,
       ...binaryOnlyPackages,
     ].filter(Boolean)
-    
+
     execSync(`"${pythonPath}" ${pipArgsBinary.join(' ')}`, {
       stdio: 'inherit',
       cwd: asrServiceDir,
@@ -311,7 +311,7 @@ function installDependencies(pythonPath, asrServiceDir) {
         PIP_NO_CACHE_DIR: '1',
       },
     })
-    
+
     // 再安装其余依赖
     execSync(`"${pythonPath}" ${pipArgs.join(' ')}`, {
       stdio: 'inherit',
@@ -359,13 +359,13 @@ async function main() {
     console.log('🔄 Python already exists, updating dependencies only...')
     console.log(`   Location: ${pythonDir}`)
     console.log('   (Use PYTHON_FORCE_DOWNLOAD=1 to re-download Python)')
-    
+
     const version = execSync(`"${pythonExe}" --version`).toString().trim()
     console.log(`\nPython version: ${version}`)
-    
+
     // 确保 pip 已安装
     await ensurePip(pythonExe)
-    
+
     // 安装/更新依赖
     const asrServiceDir = path.join(__dirname, '..', 'services', 'asr')
     installDependencies(pythonExe, asrServiceDir)

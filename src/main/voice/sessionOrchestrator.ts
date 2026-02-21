@@ -98,6 +98,7 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
 
   /**
    * 初始化会话编排器
+   * @param options 初始化选项
    * @param options.delayHotkey 是否延迟热键初始化（避免启动时立即请求辅助功能权限）
    */
   async init(options?: { delayHotkey?: boolean }): Promise<void> {

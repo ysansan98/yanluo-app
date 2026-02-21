@@ -10,7 +10,7 @@ interface Props {
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
-  'toggle-expand': [id: string]
+  toggleExpand: [id: string]
 }>()
 
 function entryTypeLabel(
@@ -24,7 +24,7 @@ function entryTypeLabel(
 
 function handleToggle() {
   if (props.entry.audioPath) {
-    emit('toggle-expand', props.entry.id)
+    emit('toggleExpand', props.entry.id)
   }
 }
 </script>
