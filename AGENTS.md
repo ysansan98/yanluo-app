@@ -7,6 +7,7 @@
 - `src/renderer`：Vue 3 前端（`src/renderer/src` 为应用代码，`assets/` 为静态样式/图片，`components/` 为 UI 组件）。
 - `services/asr`：Python ASR 服务（`main.py`、`requirements.txt`、`pyproject.toml`、本地 shim）。
 - `build` 和 `resources`：应用图标、权限配置与打包资源。
+- `electron-builder.ts`：Electron Builder 配置文件（TypeScript 格式）。
 - `out`：构建生成产物；不要手动编辑。
 
 ## 构建、测试与开发命令
@@ -19,6 +20,55 @@
 - `pnpm format`：应用 Prettier 格式化。
 - `pnpm build`：先执行 typecheck，再产出生产构建包。
 - `pnpm build:mac` / `pnpm build:win` / `pnpm build:linux`：按平台打包安装程序。
+
+## 打包与分发（含 Python 嵌入式环境）
+
+### 准备 Python 嵌入式环境
+
+ASR 服务使用 `python-build-standalone` 提供的独立 Python 3.12 运行时，与系统 Python 隔离：
+
+```bash
+# 下载 Python 3.12 并安装 ASR 依赖到 resources/python/
+pnpm run python:prepare
+```
+
+此命令仅需在以下情况执行：
+- 首次克隆仓库后准备打包
+- `services/asr/requirements.txt` 变更后
+- CI/CD 构建流程中
+
+**国内镜像加速**（可选）：
+```bash
+# 使用 ghfast 镜像加速下载
+export PYTHON_BUILD_STANDALONE_MIRROR=ghfast
+pnpm run python:prepare
+```
+
+### 构建流程
+
+```bash
+# 标准开发构建（不包含 Python 准备）
+pnpm run build
+
+# 完整构建（含 Python 准备 + 打包）
+pnpm run build:full
+
+# 打包特定平台
+pnpm run build:mac     # macOS .dmg
+pnpm run build:win     # Windows .exe 安装程序
+pnpm run build:linux   # Linux AppImage/.deb
+
+# 验证打包结果
+pnpm run python:verify
+```
+
+### 打包架构
+
+- **Python 运行时**：通过 `electron-builder` 的 `extraResources` 配置打包到应用资源目录
+- **模型文件**：运行时下载到用户数据目录（`userData/models/`），不包含在应用包内
+- **运行时路径解析**：`src/main/pythonEnv.ts` 在开发和生产环境都仅使用嵌入式 Python（`resources/python`）
+
+详细说明参阅 `.docs/PACKAGING.md`。
 
 ## Electron 调试（agent-browser）
 
@@ -40,7 +90,9 @@
 
 ## 测试指南
 
-- 当前未配置专门的单元测试框架。
+- 单元测试：`pnpm run test:unit`（Vitest）
+- 端到端测试：`pnpm run test:e2e`（Playwright + Electron）
+- 全量测试：`pnpm run test:all`
 - PR 的最低门槛：运行 `pnpm lint` 和 `pnpm typecheck`。
 - 对行为变更，请在 PR 描述中提供可复现的手动验证步骤（环境、操作、预期结果）。
 - 若新增测试，优先采用同目录的 `*.test.ts` 文件，并在 `package.json` 中记录新的测试命令。
@@ -58,4 +110,4 @@
 
 - 不要提交密钥、令牌或本地虚拟环境内部文件。
 - 在受限网络安装依赖前，检查 `.npmrc` 与镜像配置。
-- 将 `services/asr/.venv` 视为本地环境状态；需要时在本地重建。
+- 不使用 `services/asr/.venv`；统一使用嵌入式 Python（`resources/python`），通过 `pnpm run python:prepare` 维护。
