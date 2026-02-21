@@ -10,7 +10,7 @@ import { app } from 'electron'
  */
 export function getAsrServiceDir(): string {
   const appPath = app.getAppPath()
-  
+
   // 生产模式: 使用 asarUnpack 解压后的路径
   // app.getAppPath() 返回 .../app.asar，需要改为 app.asar.unpacked
   const unpackedPath = appPath.replace(/\.asar$/, '.asar.unpacked')
@@ -19,14 +19,14 @@ export function getAsrServiceDir(): string {
     console.log('[pythonEnv] Using unpacked ASR service dir:', unpackedDir)
     return unpackedDir
   }
-  
+
   // 备用：尝试直接的 appPath（开发模式）
   const appPathDir = join(appPath, 'services', 'asr')
   if (existsSync(appPathDir)) {
     console.log('[pythonEnv] Using appPath ASR service dir:', appPathDir)
     return appPathDir
   }
-  
+
   // 开发模式回退
   const devDir = join(process.cwd(), 'services', 'asr')
   console.log('[pythonEnv] Using dev ASR service dir:', devDir)

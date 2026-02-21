@@ -63,4 +63,3 @@ pnpm run python:verify
 - 代码风格：2 空格缩进，TypeScript/Vue，Prettier + ESLint
 - 提交规范：Conventional Commits（如 `feat: ...`、`fix: ...`）
 - PR 请包含：改动目的、验证步骤、关键结果（UI 改动附截图/GIF）
-

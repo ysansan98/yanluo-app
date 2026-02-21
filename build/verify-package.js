@@ -53,7 +53,7 @@ function findAppPackage() {
 
 function getPythonPath(appPackage) {
   const { platform, appBundle } = appPackage
-  
+
   if (platform === 'mac' && appBundle) {
     return path.join(appBundle, 'Contents', 'Resources', 'python')
   }
@@ -63,7 +63,7 @@ function getPythonPath(appPackage) {
   if (platform === 'linux-unpacked') {
     return path.join(appPackage.dir, 'resources', 'python')
   }
-  
+
   // Fallback
   return path.join(appPackage.dir, 'resources', 'python')
 }
@@ -79,8 +79,8 @@ function verifyFile(filePath, description) {
   if (fs.existsSync(filePath)) {
     try {
       const stats = fs.statSync(filePath)
-      const size = stats.isDirectory() 
-        ? getDirSize(filePath) 
+      const size = stats.isDirectory()
+        ? getDirSize(filePath)
         : stats.size
       console.log(`✅ ${description}: ${filePath} (${(size / 1024 / 1024).toFixed(1)} MB)`)
       return true
@@ -229,7 +229,7 @@ print('All imports OK')
   }
 
   allOk = verifyFile(asarPath, 'App bundle (app.asar)') && allOk
-  
+
   // 检查 app.asar 内的主进程代码
   if (fs.existsSync(asarPath)) {
     allOk = verifyAsarFile(asarPath, '/out/main/index.js', 'Main process bundle') && allOk
