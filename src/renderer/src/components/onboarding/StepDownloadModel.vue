@@ -185,12 +185,6 @@ const totalMB = computed(() => {
 
     <!-- 下载中 -->
     <template v-else-if="status === 'downloading'">
-      <div class="text-center py-8">
-        <div
-          class="inline-block w-16 h-16 border-4 border-yl-brand-500 border-t-transparent rounded-full animate-spin"
-        />
-      </div>
-
       <div
         class="rounded-3xl bg-white border border-yl-line-200 p-8 shadow-yl-card"
       >

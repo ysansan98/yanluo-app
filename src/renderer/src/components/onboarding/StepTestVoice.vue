@@ -99,10 +99,10 @@ onUnmounted(() => {
 
       <!-- 操作指引卡片 -->
       <div
-        class="rounded-3xl border-2 p-10 text-center transition-all"
+        class="rounded-3xl border-2 p-6 text-center transition-all"
         :class="{
           'border-yl-line-200 bg-white shadow-yl-card': testStatus === 'idle',
-          'border-yl-accent-600 bg-gradient-to-br from-orange-50 to-red-50 shadow-xl ring-4 ring-orange-100':
+          'border-yl-accent-600 bg-linear-to-br from-orange-50 to-red-50 shadow-xl ring-4 ring-orange-100':
             testStatus === 'recording',
           'border-yl-success-500 bg-yl-success-50 shadow-xl ring-4 ring-yl-success-100':
             testStatus === 'success',
@@ -188,9 +188,9 @@ onUnmounted(() => {
         </div>
 
         <!-- 成功状态 -->
-        <div v-else-if="testStatus === 'success'" class="space-y-6">
+        <div v-else-if="testStatus === 'success'" class="space-y-3">
           <div
-            class="w-24 h-24 mx-auto rounded-full bg-yl-success-100 flex items-center justify-center text-4xl text-yl-success-600"
+            class="size-20 mx-auto rounded-full bg-yl-success-100 flex items-center justify-center text-4xl text-yl-success-600"
           >
             ✓
           </div>
