@@ -154,7 +154,7 @@ function getStepStatus(index: number): 'pending' | 'current' | 'completed' {
           <div
             class="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0 transition-all"
             :class="{
-              'bg-gradient-to-br from-yl-brand-500 to-yl-accent-600 text-white shadow-lg':
+              'bg-linear-to-br from-yl-brand-500 to-yl-accent-600 text-white shadow-lg':
                 getStepStatus(index) === 'current',
               'bg-yl-success-500 text-white': getStepStatus(index) === 'completed',
               'bg-yl-line-200 text-yl-muted-500':
