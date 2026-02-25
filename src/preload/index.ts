@@ -79,6 +79,10 @@ const api = {
     enableGlobal: () => ipcRenderer.invoke('shortcut:enableGlobal'),
     initHotkey: () => ipcRenderer.invoke('shortcut:initHotkey'),
   },
+  // 剪贴板相关 API
+  clipboard: {
+    writeText: (text: string) => ipcRenderer.invoke('clipboard:writeText', text),
+  },
   // 应用级事件
   app: {
     onShowOnboarding: (handler: () => void) => {

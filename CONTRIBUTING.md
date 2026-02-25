@@ -18,6 +18,7 @@ pnpm run python:prepare
 ```
 
 说明：
+
 - `python:prepare` 会下载 `python-build-standalone` 并安装 ASR 依赖到 `resources/python/`。
 - 若网络较慢可用镜像：
 

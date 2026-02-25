@@ -5,34 +5,50 @@ const capturing = ref(false)
 const currentShortcut = ref<string | null>(null)
 const pressedKeys = ref<string[]>([])
 const isLoading = ref(true)
+// 记录完整的快捷键组合（用于在keyup时保存）
+const pendingShortcut = ref<string | null>(null)
+// 捕获区域的 DOM 引用
+const captureAreaRef = ref<HTMLElement | null>(null)
 
 onMounted(async () => {
-  console.log('[StepShortcut] Mounted, loading current shortcut...')
   currentShortcut.value = await window.api.shortcut.get()
   isLoading.value = false
   // 进入快捷键设置步骤时立即禁用全局快捷键
-  console.log('[StepShortcut] Disabling global shortcut...')
   await window.api.shortcut.disableGlobal()
-  console.log('[StepShortcut] Global shortcut disabled')
 })
 
 function startCapture() {
   capturing.value = true
   pressedKeys.value = []
-  window.addEventListener('keydown', handleKeyDown)
-  window.addEventListener('keyup', handleKeyUp)
+  pendingShortcut.value = null
+  // 聚焦到捕获区域，确保能接收键盘事件
+  captureAreaRef.value?.focus()
+  // 使用 capture 阶段确保能捕获到系统快捷键
+  window.addEventListener('keydown', handleKeyDown, true)
+  window.addEventListener('keyup', handleKeyUp, true)
 }
 
 function stopCapture() {
   capturing.value = false
   pressedKeys.value = []
-  window.removeEventListener('keydown', handleKeyDown)
-  window.removeEventListener('keyup', handleKeyUp)
+  pendingShortcut.value = null
+  window.removeEventListener('keydown', handleKeyDown, true)
+  window.removeEventListener('keyup', handleKeyUp, true)
 }
 
-function handleKeyDown(event: KeyboardEvent) {
-  event.preventDefault()
+// 保存待定的快捷键（在 keyup 不可靠时作为备选）
+async function savePendingShortcut() {
+  if (pendingShortcut.value) {
+    const shortcut = pendingShortcut.value
+    currentShortcut.value = shortcut
+    console.log('[StepShortcut] Saving pending shortcut:', shortcut)
+    await window.api.shortcut.set(shortcut)
+    pendingShortcut.value = null
+  }
+}
 
+// 从键盘事件获取当前按下的键列表
+function getPressedKeysFromEvent(event: KeyboardEvent): string[] {
   const keys: string[] = []
 
   if (event.ctrlKey)
@@ -44,11 +60,13 @@ function handleKeyDown(event: KeyboardEvent) {
   if (event.metaKey)
     keys.push('Cmd')
 
+  // 注意：event.key 是当前触发事件的键，不一定是修饰键
+  // 对于keydown事件，如果key是普通键（非修饰键），添加到列表
   const key = event.key
   if (!['Control', 'Alt', 'Shift', 'Meta'].includes(key)) {
     const keyMap: Record<string, string> = {
       ' ': 'Space',
-      'Enter': '↵',
+      'Enter': 'Return',
       'Tab': 'Tab',
       'Escape': 'Esc',
       'ArrowUp': '↑',
@@ -59,38 +77,81 @@ function handleKeyDown(event: KeyboardEvent) {
     keys.push(keyMap[key] || key.toUpperCase())
   }
 
+  return keys
+}
+
+function handleKeyDown(event: KeyboardEvent) {
+  event.preventDefault()
+  event.stopPropagation()
+
+  const keys = getPressedKeysFromEvent(event)
+
   if (keys.length > 0) {
     pressedKeys.value = keys
+    // 记录完整的快捷键组合（用于后续保存）
+    pendingShortcut.value = keys.join(' + ')
   }
 }
 
 async function handleKeyUp(event: KeyboardEvent) {
   event.preventDefault()
+  event.stopPropagation()
 
-  if (
-    pressedKeys.value.length > 0
-    && !['Control', 'Alt', 'Shift', 'Meta'].includes(event.key)
-  ) {
-    setTimeout(async () => {
-      if (pressedKeys.value.length >= 1) {
-        const shortcut = pressedKeys.value.join(' + ')
-        currentShortcut.value = shortcut
-        stopCapture()
-        // 直接保存快捷键
-        await window.api.shortcut.set(shortcut)
-      }
-    }, 100)
+  // 获取被松开的键名
+  const releasedKey = event.key
+
+  // 将 event.key 映射到我们的键名
+  const keyMapping: Record<string, string> = {
+    Control: 'Ctrl',
+    Alt: 'Alt',
+    Shift: 'Shift',
+    Meta: 'Cmd',
+  }
+
+  const mappedKey = keyMapping[releasedKey]
+  console.log('[StepShortcut] mappedKey:', mappedKey)
+
+  // 从 pressedKeys 中移除被松开的键
+  if (mappedKey) {
+    const before = [...pressedKeys.value]
+    pressedKeys.value = pressedKeys.value.filter(k => k !== mappedKey)
+    console.log('[StepShortcut] Removed modifier. Before:', before, 'After:', [...pressedKeys.value])
+  }
+  else {
+    // 普通键被松开（非修饰键）
+    const keyMap: Record<string, string> = {
+      ' ': 'Space',
+      'Enter': 'Return',
+      'Tab': 'Tab',
+      'Escape': 'Esc',
+      'ArrowUp': '↑',
+      'ArrowDown': '↓',
+      'ArrowLeft': '←',
+      'ArrowRight': '→',
+    }
+    const normalizedKey = keyMap[releasedKey] || releasedKey.toUpperCase()
+    pressedKeys.value = pressedKeys.value.filter(k => k !== normalizedKey)
+    console.log('[StepShortcut] Removed normal key:', normalizedKey)
+  }
+
+  // 当所有键都松开时，保存快捷键
+  if (pressedKeys.value.length === 0 && pendingShortcut.value) {
+    const shortcut = pendingShortcut.value
+    currentShortcut.value = shortcut
+    stopCapture()
+    // 保存快捷键
+    await window.api.shortcut.set(shortcut)
   }
 }
 
 onUnmounted(async () => {
-  // 清理事件监听
-  window.removeEventListener('keydown', handleKeyDown)
-  window.removeEventListener('keyup', handleKeyUp)
+  // 如果有待保存的快捷键，先保存（keyup 事件可能没有被触发）
+  await savePendingShortcut()
+  // 清理事件监听（必须与添加时使用相同的参数）
+  window.removeEventListener('keydown', handleKeyDown, true)
+  window.removeEventListener('keyup', handleKeyUp, true)
   // 重新启用全局快捷键
-  console.log('[StepShortcut] Re-enabling global shortcut...')
   await window.api.shortcut.enableGlobal()
-  console.log('[StepShortcut] Global shortcut re-enabled')
 })
 </script>
 
@@ -106,7 +167,9 @@ onUnmounted(async () => {
     <template v-else>
       <!-- 快捷键捕获区域 -->
       <div
-        class="rounded-3xl border-3 p-10 text-center transition-all cursor-pointer select-none"
+        ref="captureAreaRef"
+        tabindex="-1"
+        class="rounded-3xl border-3 p-10 text-center transition-all cursor-pointer select-none outline-none"
         :class="
           capturing
             ? 'border-yl-brand-500 bg-yl-brand-50 shadow-xl ring-4 ring-yl-brand-100'
@@ -176,15 +239,19 @@ onUnmounted(async () => {
             设置一个顺手的组合键，按住开始录音，松开发送
           </div>
           <div
-            class="flex items-center justify-center gap-2 text-sm text-yl-muted-400"
+            class="flex items-center justify-center gap-2 text-sm text-yl-muted-400 flex-wrap"
           >
             <kbd class="px-2 py-1 bg-yl-paper-100 rounded border">Ctrl</kbd>
             <span>+</span>
             <kbd class="px-2 py-1 bg-yl-paper-100 rounded border">Z</kbd>
-            <span class="mx-2">或</span>
+            <span class="mx-1">或</span>
             <kbd class="px-2 py-1 bg-yl-paper-100 rounded border">Alt</kbd>
             <span>+</span>
             <kbd class="px-2 py-1 bg-yl-paper-100 rounded border">Space</kbd>
+            <span class="mx-1">或</span>
+            <kbd class="px-2 py-1 bg-yl-paper-100 rounded border">Ctrl</kbd>
+            <span>+</span>
+            <kbd class="px-2 py-1 bg-yl-paper-100 rounded border">Alt</kbd>
           </div>
         </div>
       </div>

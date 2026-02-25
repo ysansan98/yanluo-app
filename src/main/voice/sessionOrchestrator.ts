@@ -158,6 +158,11 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     })
   }
 
+  updateShortcut(shortcut: string): void {
+    this.deps.hotkeyManager.updateShortcut?.(shortcut)
+    this.log('shortcut updated via orchestrator', { shortcut })
+  }
+
   async handleHotkeyPress(options?: {
     skipPrerequisiteChecks?: boolean
     testUiOnly?: boolean

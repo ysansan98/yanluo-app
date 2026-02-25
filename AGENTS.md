@@ -33,11 +33,13 @@ pnpm run python:prepare
 ```
 
 此命令仅需在以下情况执行：
+
 - 首次克隆仓库后准备打包
 - `services/asr/requirements.txt` 变更后
 - CI/CD 构建流程中
 
 **国内镜像加速**（可选）：
+
 ```bash
 # 使用 ghfast 镜像加速下载
 export PYTHON_BUILD_STANDALONE_MIRROR=ghfast

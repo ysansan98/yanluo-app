@@ -8,7 +8,7 @@ import type { PermissionChecker, SessionOrchestrator } from './voice/types'
 import { existsSync, readFileSync } from 'node:fs'
 import { extname } from 'node:path'
 import process from 'node:process'
-import { dialog, ipcMain } from 'electron'
+import { clipboard, dialog, ipcMain } from 'electron'
 import { VAD_CONFIG_IPC } from '~shared/voice'
 import { getModelDir, getModelId, modelExists } from './modelManager'
 
@@ -241,7 +241,25 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
 
   ipcMain.handle('shortcut:set', async (_event, shortcut: string | null) => {
     settingsStore.setShortcut(shortcut)
+    // 通知 sessionOrchestrator 更新快捷键配置（热更新，无需重启）
+    // 支持清空快捷键（设置为 null）
+    sessionOrchestrator.updateShortcut?.(shortcut ?? '')
     return { ok: true as const }
+  })
+
+  // 复制文本到剪贴板（替代 navigator.clipboard，避免权限问题）
+  ipcMain.handle('clipboard:writeText', async (_event, text: string) => {
+    try {
+      clipboard.writeText(text)
+      return { ok: true as const }
+    }
+    catch (err) {
+      console.error('[ipc] clipboard:writeText failed:', err)
+      return {
+        ok: false as const,
+        error: err instanceof Error ? err.message : String(err),
+      }
+    }
   })
 
   // 全局快捷键控制（用于设置快捷键步骤时临时禁用）

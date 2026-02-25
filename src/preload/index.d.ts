@@ -112,6 +112,10 @@ interface AppEventApi {
   onShortcutRequired: (handler: () => void) => () => void
 }
 
+interface ClipboardApi {
+  writeText: (text: string) => Promise<{ ok: boolean, error?: string }>
+}
+
 interface AppApi {
   asr: AsrApi
   history: HistoryApi
@@ -119,6 +123,7 @@ interface AppApi {
   onboarding: OnboardingApi
   permission: PermissionApi
   shortcut: ShortcutApi
+  clipboard: ClipboardApi
   app: AppEventApi
   test?: {
     triggerShortcutHub: () => Promise<{ ok: true }>

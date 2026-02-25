@@ -126,6 +126,11 @@ export interface HotkeyManager {
   onPress: (cb: () => void) => void
   onRelease: (cb: () => void) => void
   onError: (cb: (err: VoiceError) => void) => void
+  /**
+   * 更新快捷键配置（热更新，无需重启）
+   * @param shortcut 快捷键字符串，如 "Alt + Space"
+   */
+  updateShortcut?: (shortcut: string) => void
 }
 
 // Re-export shared VAD types from ~shared
@@ -178,6 +183,11 @@ export interface SessionOrchestrator {
    * 延迟初始化热键（在引导完成后调用，避免启动时立即请求辅助功能权限）
    */
   initHotkey?: () => Promise<void>
+  /**
+   * 更新快捷键配置
+   * @param shortcut 快捷键字符串，如 "Alt + Space"
+   */
+  updateShortcut?: (shortcut: string) => void
 }
 
 export const VOICE_TIMEOUT = {

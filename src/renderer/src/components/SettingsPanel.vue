@@ -265,29 +265,45 @@ const totalMB = computed(() => {
 
 // 快捷键捕获状态
 const pressedKeys = ref<string[]>([])
+// 记录完整的快捷键组合（用于在keyup时保存）
+let pendingShortcut: string | null = null
 
 // 开始捕获快捷键
 async function startCaptureShortcut() {
   emit('update:isCapturingShortcut', true)
   pressedKeys.value = []
+  pendingShortcut = null
   // 禁用全局快捷键，避免冲突
   await window.api.shortcut.disableGlobal()
-  window.addEventListener('keydown', handleKeyDown)
-  window.addEventListener('keyup', handleKeyUp)
+  // 使用 capture 阶段确保能捕获到系统快捷键
+  window.addEventListener('keydown', handleKeyDown, true)
+  window.addEventListener('keyup', handleKeyUp, true)
 }
 
 // 停止捕获
 function stopCaptureShortcut() {
   emit('update:isCapturingShortcut', false)
   pressedKeys.value = []
-  window.removeEventListener('keydown', handleKeyDown)
-  window.removeEventListener('keyup', handleKeyUp)
+  pendingShortcut = null
+  window.removeEventListener('keydown', handleKeyDown, true)
+  window.removeEventListener('keyup', handleKeyUp, true)
   // 重新启用全局快捷键
   void window.api.shortcut.enableGlobal()
 }
 
+// 保存待定的快捷键
+async function savePendingShortcut() {
+  if (pendingShortcut) {
+    const shortcut = pendingShortcut
+    emit('update:globalShortcut', shortcut)
+    stopCaptureShortcut()
+    await window.api.shortcut.set(shortcut)
+  }
+}
+
 function handleKeyDown(event: KeyboardEvent) {
   event.preventDefault()
+  event.stopPropagation()
 
   const keys: string[] = []
 
@@ -304,7 +320,7 @@ function handleKeyDown(event: KeyboardEvent) {
   if (!['Control', 'Alt', 'Shift', 'Meta'].includes(key)) {
     const keyMap: Record<string, string> = {
       ' ': 'Space',
-      'Enter': '↵',
+      'Enter': 'Return',
       'Tab': 'Tab',
       'Escape': 'Esc',
       'ArrowUp': '↑',
@@ -317,30 +333,64 @@ function handleKeyDown(event: KeyboardEvent) {
 
   if (keys.length > 0) {
     pressedKeys.value = keys
+    // 记录完整的快捷键组合（用于后续保存）
+    pendingShortcut = keys.join(' + ')
   }
 }
 
 async function handleKeyUp(event: KeyboardEvent) {
   event.preventDefault()
+  event.stopPropagation()
 
-  if (
-    pressedKeys.value.length > 0
-    && !['Control', 'Alt', 'Shift', 'Meta'].includes(event.key)
-  ) {
-    setTimeout(async () => {
-      if (pressedKeys.value.length >= 1) {
-        const shortcut = pressedKeys.value.join(' + ')
-        emit('update:globalShortcut', shortcut)
-        stopCaptureShortcut()
-        // 保存快捷键
-        await window.api.shortcut.set(shortcut)
-      }
-    }, 100)
+  // 获取被松开的键名
+  const releasedKey = event.key
+
+  // 将 event.key 映射到我们的键名
+  const keyMapping: Record<string, string> = {
+    Control: 'Ctrl',
+    Alt: 'Alt',
+    Shift: 'Shift',
+    Meta: 'Cmd',
+  }
+
+  const mappedKey = keyMapping[releasedKey]
+
+  // 从 pressedKeys 中移除被松开的键
+  if (mappedKey) {
+    pressedKeys.value = pressedKeys.value.filter(k => k !== mappedKey)
+  }
+  else {
+    // 普通键被松开（非修饰键）
+    const keyMap: Record<string, string> = {
+      ' ': 'Space',
+      'Enter': '↵',
+      'Tab': 'Tab',
+      'Escape': 'Esc',
+      'ArrowUp': '↑',
+      'ArrowDown': '↓',
+      'ArrowLeft': '←',
+      'ArrowRight': '→',
+    }
+    const normalizedKey = keyMap[releasedKey] || releasedKey.toUpperCase()
+    pressedKeys.value = pressedKeys.value.filter(k => k !== normalizedKey)
+  }
+
+  // 当所有键都松开时，保存快捷键
+  if (pressedKeys.value.length === 0 && pendingShortcut) {
+    const shortcut = pendingShortcut
+    emit('update:globalShortcut', shortcut)
+    stopCaptureShortcut()
+    // 保存快捷键
+    await window.api.shortcut.set(shortcut)
   }
 }
 
 // 组件卸载时清理
 onUnmounted(() => {
+  if (pendingShortcut) {
+    // 如果有待保存的快捷键，先保存（keyup 事件可能没有被触发）
+    void savePendingShortcut()
+  }
   if (props.isCapturingShortcut) {
     stopCaptureShortcut()
   }
@@ -395,7 +445,7 @@ onUnmounted(() => {
         <!-- 进度条 -->
         <div class="h-2 bg-yl-paper-300 rounded-full overflow-hidden">
           <div
-            class="h-full bg-gradient-to-r from-yl-accent-400 to-yl-accent-500 transition-all duration-300"
+            class="h-full bg-linear-to-r from-yl-accent-400 to-yl-accent-500 transition-all duration-300"
             :style="{ width: `${downloadProgress.percent || 0}%` }"
           />
         </div>

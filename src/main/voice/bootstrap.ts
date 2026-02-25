@@ -47,7 +47,11 @@ interface VoiceRuntime {
 export function createVoiceRuntime(
   options: CreateVoiceRuntimeOptions,
 ): VoiceRuntime {
+  // 从设置中读取快捷键配置
+  const savedShortcut = options.settingsStore.getShortcut()
+
   const hotkeyManager = new MacGlobalHotkeyManager({
+    shortcut: savedShortcut ?? undefined,
     log: (message, extra) => {
       console.info(`[voice-hotkey] ${message}`, extra ?? {})
     },
