@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import Icon from './Icon.vue'
 
 interface Props {
   audioPath: string
@@ -204,22 +205,10 @@ onBeforeUnmount(() => {
         :title="playing ? '暂停' : '播放'"
         @click="togglePlay"
       >
-        <svg
-          v-if="playing"
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          class="h-4 w-4 fill-current"
-        >
-          <path d="M7 5h4v14H7zM13 5h4v14h-4z" />
-        </svg>
-        <svg
-          v-else
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          class="h-4 w-4 fill-current"
-        >
-          <path d="M8 5v14l11-7z" />
-        </svg>
+        <Icon
+          :name="playing ? 'lucide:pause' : 'lucide:play'"
+          size="w-4 h-4"
+        />
       </button>
       <button
         class="cursor-pointer rounded-lg border border-yl-line-280 bg-white px-2 py-1 text-xs text-yl-ink-650"
@@ -227,13 +216,7 @@ onBeforeUnmount(() => {
         title="后退5秒"
         @click="seekBy(-5)"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          class="h-4 w-4 fill-current"
-        >
-          <path d="M11 6v4H6v4h5v4l-7-6zM13 7h5v10h-5v-2h3V9h-3z" />
-        </svg>
+        <Icon name="lucide:skip-back" size="w-4 h-4" />
       </button>
       <button
         class="cursor-pointer rounded-lg border border-yl-line-280 bg-white px-2 py-1 text-xs text-yl-ink-650"
@@ -241,13 +224,7 @@ onBeforeUnmount(() => {
         title="前进5秒"
         @click="seekBy(5)"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          class="h-4 w-4 fill-current"
-        >
-          <path d="M13 6v4h5v4h-5v4l7-6zM11 7H6v2h3v6H6v2h5z" />
-        </svg>
+        <Icon name="lucide:skip-forward" size="w-4 h-4" />
       </button>
       <div class="ml-auto text-[11px] text-yl-muted-430">
         {{ formatTime(progressValue) }} / {{ formatTime(duration) }}

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onUnmounted, ref } from 'vue'
 import AppActionButton from '../AppActionButton.vue'
+import Icon from '../Icon.vue'
 
 type PermissionStatus = 'GRANTED' | 'DENIED' | 'NOT_DETERMINED' | 'RESTRICTED'
 type PermissionKind = 'MICROPHONE' | 'ACCESSIBILITY'
@@ -26,7 +27,7 @@ const permissions = ref<PermissionState[]>([
     description: '录制语音输入',
     detail:
       '需要访问麦克风来录制您的语音，所有音频处理均在本地完成，不会上传到任何服务器',
-    icon: '🎤',
+    icon: 'lucide:mic',
     status: 'NOT_DETERMINED',
   },
   {
@@ -35,7 +36,7 @@ const permissions = ref<PermissionState[]>([
     description: '自动粘贴识别结果',
     detail:
       '需要辅助功能权限来将识别结果自动输入到当前光标位置，让语音输入更便捷',
-    icon: '⌨️',
+    icon: 'lucide:keyboard',
     status: 'NOT_DETERMINED',
   },
 ])
@@ -134,7 +135,8 @@ function getStatusConfig(status: PermissionStatus) {
         iconBg: 'bg-yl-success-100',
         iconColor: 'text-yl-success-600',
         badge: 'bg-yl-success-500 text-white',
-        badgeText: '✓ 已授权',
+        badgeText: '已授权',
+        badgeIcon: 'lucide:check',
       }
     case 'DENIED':
       return {
@@ -143,7 +145,8 @@ function getStatusConfig(status: PermissionStatus) {
         iconBg: 'bg-red-100',
         iconColor: 'text-red-600',
         badge: 'bg-red-500 text-white',
-        badgeText: '✗ 已拒绝',
+        badgeText: '已拒绝',
+        badgeIcon: 'lucide:x',
       }
     case 'RESTRICTED':
       return {
@@ -152,7 +155,8 @@ function getStatusConfig(status: PermissionStatus) {
         iconBg: 'bg-orange-100',
         iconColor: 'text-orange-600',
         badge: 'bg-orange-500 text-white',
-        badgeText: '! 受限',
+        badgeText: '受限',
+        badgeIcon: 'lucide:alert-circle',
       }
     default:
       return {
@@ -162,6 +166,7 @@ function getStatusConfig(status: PermissionStatus) {
         iconColor: 'text-yl-muted-400',
         badge: 'bg-yl-brand-100 text-yl-brand-600',
         badgeText: '待授权',
+        badgeIcon: 'lucide:clock',
       }
   }
 }
@@ -188,7 +193,7 @@ function getActionText(status: PermissionStatus) {
       class="rounded-2xl bg-red-50 border border-red-200 p-4 text-red-700"
     >
       <div class="flex items-center gap-2">
-        <span>⚠️</span>
+        <Icon name="lucide:alert-triangle" size="w-5 h-5" />
         {{ error }}
       </div>
     </div>
@@ -211,7 +216,7 @@ function getActionText(status: PermissionStatus) {
             getStatusConfig(perm.status).iconColor,
           ]"
         >
-          {{ perm.icon }}
+          <Icon :name="perm.icon" size="w-8 h-8" />
         </div>
 
         <div class="flex-1 min-w-0">
@@ -225,9 +230,10 @@ function getActionText(status: PermissionStatus) {
               </p>
             </div>
             <span
-              class="text-sm px-4 py-1.5 rounded-full font-medium shrink-0"
+              class="text-sm px-4 py-1.5 rounded-full font-medium shrink-0 flex items-center gap-1"
               :class="getStatusConfig(perm.status).badge"
             >
+              <Icon :name="getStatusConfig(perm.status).badgeIcon" size="w-3.5 h-3.5" />
               {{ getStatusConfig(perm.status).badgeText }}
             </span>
           </div>
@@ -253,7 +259,9 @@ function getActionText(status: PermissionStatus) {
             >
               <span
                 class="w-6 h-6 rounded-full bg-yl-success-500 text-white flex items-center justify-center text-sm"
-              >✓</span>
+              >
+                <Icon name="lucide:check" size="w-4 h-4" />
+              </span>
               该权限已配置完成
             </div>
           </div>
@@ -264,7 +272,7 @@ function getActionText(status: PermissionStatus) {
     <!-- 手动设置指引 -->
     <div class="rounded-2xl bg-yl-paper-250 border border-yl-line-200 p-6">
       <div class="flex gap-4">
-        <span class="text-2xl">💡</span>
+        <Icon name="lucide:lightbulb" size="w-8 h-8" class-name="text-yl-brand-500" />
         <div>
           <p class="font-bold text-yl-ink-600 mb-2">
             无法弹出授权窗口？

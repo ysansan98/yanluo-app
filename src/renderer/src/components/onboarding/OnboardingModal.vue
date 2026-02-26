@@ -3,6 +3,7 @@ import type { Component } from 'vue'
 import LogoSvg from '@renderer/assets/logo.svg'
 import { computed, ref } from 'vue'
 import AppActionButton from '../AppActionButton.vue'
+import Icon from '../Icon.vue'
 import StepDownloadModel from './StepDownloadModel.vue'
 import StepPermissions from './StepPermissions.vue'
 import StepShortcut from './StepShortcut.vue'
@@ -28,7 +29,7 @@ const steps: Step[] = [
     subtitle: '离线识别，随开随用',
     description:
       '下载约 300MB 的语音识别模型，支持中英粤日韩多语言，无需联网即可使用',
-    icon: '📦',
+    icon: 'lucide:package',
     component: StepDownloadModel,
   },
   {
@@ -36,7 +37,7 @@ const steps: Step[] = [
     title: '授权系统权限',
     subtitle: '安全可控，本地处理',
     description: '需要麦克风和辅助功能权限，所有处理均在本地完成，保护您的隐私',
-    icon: '🔐',
+    icon: 'lucide:lock',
     component: StepPermissions,
   },
   {
@@ -44,7 +45,7 @@ const steps: Step[] = [
     title: '设置快捷键',
     subtitle: '一键启动，高效输入',
     description: '选择一个顺手的快捷键组合，按住说话，松开发送，让输入更高效',
-    icon: '⌨️',
+    icon: 'lucide:keyboard',
     component: StepShortcut,
   },
   {
@@ -52,7 +53,7 @@ const steps: Step[] = [
     title: '测试语音输入',
     subtitle: '立即体验，畅快输入',
     description: '按下快捷键说几句话，体验语音输入带来的便捷',
-    icon: '🎤',
+    icon: 'lucide:mic',
     component: StepTestVoice,
   },
 ]
@@ -161,8 +162,8 @@ function getStepStatus(index: number): 'pending' | 'current' | 'completed' {
                 getStepStatus(index) === 'pending',
             }"
           >
-            <span v-if="getStepStatus(index) === 'completed'">✓</span>
-            <span v-else>{{ step.icon }}</span>
+            <Icon v-if="getStepStatus(index) === 'completed'" name="lucide:check" size="w-5 h-5" />
+            <Icon v-else :name="step.icon" size="w-5 h-5" />
           </div>
 
           <!-- 步骤信息 -->
@@ -193,7 +194,7 @@ function getStepStatus(index: number): 'pending' | 'current' | 'completed' {
         class="h-16 flex items-center justify-between px-8 border-b border-yl-line-200/50"
       >
         <div class="flex items-center gap-3">
-          <span class="text-xl">{{ currentStep.icon }}</span>
+          <Icon :name="currentStep.icon" size="w-6 h-6" class-name="text-yl-brand-600" />
           <div>
             <h1 class="font-bold text-yl-ink-700">
               {{ currentStep.title }}
@@ -236,7 +237,10 @@ function getStepStatus(index: number): 'pending' | 'current' | 'completed' {
           variant="outline"
           @click="prevStep"
         >
-          ← 上一步
+          <span class="flex items-center gap-1">
+            <Icon name="lucide:arrow-left" size="w-4 h-4" />
+            上一步
+          </span>
         </AppActionButton>
         <div v-else />
 
@@ -246,11 +250,17 @@ function getStepStatus(index: number): 'pending' | 'current' | 'completed' {
             variant="primary"
             @click="nextStep"
           >
-            下一步 →
+            <span class="flex items-center gap-1">
+              下一步
+              <Icon name="lucide:arrow-right" size="w-4 h-4" />
+            </span>
           </AppActionButton>
 
           <AppActionButton v-else variant="primary" @click="completeOnboarding">
-            ✓ 完成设置
+            <span class="flex items-center gap-1">
+              <Icon name="lucide:check" size="w-4 h-4" />
+              完成设置
+            </span>
           </AppActionButton>
         </div>
       </div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { MenuItem, MenuKey } from '../types/ui'
+import Icon from './Icon.vue'
 
 interface Props {
   menuItems: MenuItem[]
@@ -14,14 +15,14 @@ const emit = defineEmits<{
 
 function menuIcon(key: MenuKey): string {
   if (key === 'home')
-    return '⌂'
+    return 'lucide:home'
   if (key === 'polish')
-    return '✦'
+    return 'lucide:sparkles'
   if (key === 'provider')
-    return '☁'
+    return 'lucide:cloud'
   if (key === 'settings')
-    return '⚙'
-  return 'ℹ'
+    return 'lucide:settings'
+  return 'lucide:info'
 }
 </script>
 
@@ -63,7 +64,9 @@ function menuIcon(key: MenuKey): string {
           >
             <span
               class="inline-flex h-5 w-5 items-center justify-center rounded-md bg-white/70 text-[12px] leading-none"
-            >{{ menuIcon(item.key) }}</span>
+            >
+              <Icon :name="menuIcon(item.key)" size="w-4 h-4" />
+            </span>
             <span>{{ item.label }}</span>
           </button>
         </div>

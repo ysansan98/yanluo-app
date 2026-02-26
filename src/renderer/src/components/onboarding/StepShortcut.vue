@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
+import Icon from '../Icon.vue'
 
 const capturing = ref(false)
 const currentShortcut = ref<string | null>(null)
@@ -180,7 +181,7 @@ onUnmounted(async () => {
         <!-- 捕获中状态 -->
         <div v-if="capturing" class="space-y-6">
           <div class="text-4xl animate-bounce">
-            ⌨️
+            <Icon name="lucide:keyboard" size="w-12 h-12" class-name="text-yl-brand-600" />
           </div>
           <div class="text-yl-brand-600 font-bold text-xl">
             按下快捷键组合...
@@ -208,7 +209,7 @@ onUnmounted(async () => {
         <!-- 已设置状态 -->
         <div v-else-if="currentShortcut" class="space-y-6">
           <div class="text-4xl">
-            ✅
+            <Icon name="lucide:circle-check" size="w-12 h-12" class-name="text-yl-success-500" />
           </div>
           <div class="text-yl-muted-400 font-medium">
             当前快捷键
@@ -230,7 +231,7 @@ onUnmounted(async () => {
         <!-- 未设置状态 -->
         <div v-else class="space-y-6">
           <div class="text-5xl">
-            ⌨️
+            <Icon name="lucide:keyboard" size="w-14 h-14" class-name="text-yl-muted-400" />
           </div>
           <div class="text-yl-ink-700 text-xl font-bold">
             点击设置快捷键
@@ -259,7 +260,7 @@ onUnmounted(async () => {
       <!-- 使用说明 -->
       <div class="rounded-2xl bg-yl-brand-50 border border-yl-brand-100 p-6">
         <div class="flex gap-4">
-          <span class="text-xl">💡</span>
+          <Icon name="lucide:lightbulb" size="w-6 h-6" class-name="text-yl-brand-600" />
           <div class="text-sm text-yl-brand-800 space-y-1">
             <p class="font-bold">
               使用提示

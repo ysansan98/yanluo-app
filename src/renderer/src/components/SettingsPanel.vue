@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { MIC_DEVICE_STORAGE_KEY } from '../constants/audio'
 import AppActionButton from './AppActionButton.vue'
+import Icon from './Icon.vue'
 
 interface Props {
   globalShortcut: string
@@ -422,7 +423,7 @@ onUnmounted(() => {
       <!-- 未下载状态 -->
       <div v-if="!modelExists && !isDownloading" class="mt-3 space-y-3">
         <div class="flex items-center gap-2 text-sm text-orange-600">
-          <span class="text-lg">⚠️</span>
+          <Icon name="lucide:alert-triangle" size="w-5 h-5" />
           <span>模型未下载，无法使用语音输入功能</span>
         </div>
         <div class="text-xs text-yl-muted-400">

@@ -2,14 +2,7 @@
 import type { AiProviderInfo, AiProviderUserConfig } from '../../../shared/ai/types'
 import { computed, onMounted, ref } from 'vue'
 import AppActionButton from './AppActionButton.vue'
-
-// Icons
-const icons = {
-  plus: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>',
-  check: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>',
-  trash: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>',
-  external: '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>',
-}
+import Icon from './Icon.vue'
 
 // State
 const registry = ref<Record<string, AiProviderInfo> | null>(null)
@@ -263,7 +256,10 @@ async function saveCustomProvider() {
           </div>
         </div>
         <AppActionButton size="sm" @click="openCustomModal">
-          <span class="flex items-center gap-1" v-html="`${icons.plus} 自定义服务商`" />
+          <span class="flex items-center gap-1">
+            <Icon name="lucide:plus" size="w-4 h-4" />
+            自定义服务商
+          </span>
         </AppActionButton>
       </div>
     </section>
@@ -321,15 +317,11 @@ async function saveCustomProvider() {
                 {{ provider.models?.[provider.userConfig.selectedModelId || '']?.name || provider.userConfig.selectedModelId || '未选择模型' }}
               </span>
               <span v-else class="text-xs text-yl-muted-400">未配置</span>
-              <svg
-                class="w-4 h-4 text-yl-muted-400 transition-transform"
-                :class="{ 'rotate-180': expandedProvider === provider.id }"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-              </svg>
+              <Icon
+                name="lucide:chevron-down"
+                size="w-4 h-4"
+                :class="`text-yl-muted-400 transition-transform ${expandedProvider === provider.id ? 'rotate-180' : ''}`"
+              />
             </div>
           </div>
 
@@ -428,7 +420,12 @@ async function saveCustomProvider() {
                   : 'bg-red-100 text-red-700'"
                 :title="validationResult.message || ''"
               >
-                {{ validationResult.ok ? '✓' : '✗' }} {{ validationResult.message }}
+                <Icon
+                  :name="validationResult.ok ? 'lucide:check' : 'lucide:x'"
+                  size="w-3 h-3"
+                  class-name="inline mr-1"
+                />
+                {{ validationResult.message }}
               </span>
             </div>
 
@@ -440,7 +437,7 @@ async function saveCustomProvider() {
                 class="text-xs text-yl-brand-500 hover:underline inline-flex items-center gap-1"
               >
                 查看官方文档
-                <span v-html="icons.external" />
+                <Icon name="lucide:external-link" size="w-3 h-3" />
               </a>
             </div>
           </div>
