@@ -53,12 +53,13 @@ const { hotkeyManager, sessionOrchestrator, permissionChecker, initHotkey }
 
       // 创建历史记录
       const settings = settingsStore.get()
-      const commandName = settings.polish.enabled && settings.polish.selectedCommandId
+      const isPolishEnabled = settings.polish.enabled && settings.polish.selectedCommandId
+      const commandName = isPolishEnabled
         ? settingsStore.getAllPolishCommands().find(c => c.id === settings.polish.selectedCommandId)?.name ?? null
         : null
       void historyStore.create({
         source: 'live',
-        entryType: settings.polish.enabled && settings.polish.selectedCommandId ? 'polish' : 'asr_only',
+        entryType: isPolishEnabled ? 'polish' : 'asr_only',
         commandName,
         text: payload.finalText,
         audioPath: payload.audioPath,

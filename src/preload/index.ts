@@ -1,3 +1,4 @@
+import type { HistoryEntry } from '../main/historyStore'
 import type { DownloadProgress } from '../main/modelManager'
 import process from 'node:process'
 import { electronAPI } from '@electron-toolkit/preload'
@@ -47,6 +48,11 @@ const api = {
     clear: () => ipcRenderer.invoke('history:clear'),
     readAudio: (payload: { path: string }) =>
       ipcRenderer.invoke('history:readAudio', payload),
+    onCreated: (listener: (entry: HistoryEntry) => void) => {
+      const wrappedListener = (_event: Electron.IpcRendererEvent, entry: HistoryEntry) => listener(entry)
+      ipcRenderer.on('history:created', wrappedListener)
+      return () => ipcRenderer.removeListener('history:created', wrappedListener)
+    },
   },
   voice: createVoiceBridge(),
   // 引导相关 API

@@ -8,7 +8,7 @@ import type { PermissionChecker, SessionOrchestrator } from './voice/types'
 import { existsSync, readFileSync } from 'node:fs'
 import { extname } from 'node:path'
 import process from 'node:process'
-import { clipboard, ipcMain } from 'electron'
+import { BrowserWindow as BW, clipboard, ipcMain } from 'electron'
 import { VAD_CONFIG_IPC } from '~shared/voice'
 import { getModelDir, getModelId, modelExists } from './modelManager'
 import { polishEngine } from './polish/polishEngine'
@@ -128,7 +128,14 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
         audioPath?: string | null
         triggeredAt?: number
       },
-    ) => historyStore.create(payload),
+    ) => {
+      const entry = await historyStore.create(payload)
+      // 广播给所有渲染进程
+      BW.getAllWindows().forEach((win) => {
+        win.webContents.send('history:created', entry)
+      })
+      return entry
+    },
   )
   ipcMain.handle('history:list', async (_event, payload?: { limit?: number }) =>
     historyStore.list(payload?.limit ?? 200))

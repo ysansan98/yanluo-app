@@ -10,7 +10,6 @@ const emit = defineEmits<{
 
 // Icon mapping using Iconify icons
 const iconMap: Record<string, string> = {
-  'polish-none': 'lucide:align-left',
   'polish-oral': 'lucide:sparkles',
   'polish-concise': 'lucide:sparkles',
   'translate-en': 'lucide:languages',
@@ -81,15 +80,13 @@ function getIcon(commandId: string): string {
 
 // Actions
 async function setCommand(commandId: string) {
-  if (commandId !== 'polish-none') {
-    if (!aiStatus.value?.hasEnabledProvider) {
-      console.warn('请先配置 AI 服务商')
-      return
-    }
-    if (!aiStatus.value?.isActiveProviderValid) {
-      console.warn('当前 AI 服务商配置无效，请检查配置')
-      return
-    }
+  if (!aiStatus.value?.hasEnabledProvider) {
+    console.warn('请先配置 AI 服务商')
+    return
+  }
+  if (!aiStatus.value?.isActiveProviderValid) {
+    console.warn('当前 AI 服务商配置无效，请检查配置')
+    return
   }
 
   try {
@@ -191,9 +188,9 @@ async function deleteCommand(commandId: string, event: Event) {
     await window.api.polish.removeCommand?.(commandId)
     // Remove from local list without full reload
     commands.value = commands.value.filter(c => c.id !== commandId)
-    // If deleted command was selected, reset to none
+    // If deleted command was selected, reset to first built-in
     if (config.value?.selectedCommandId === commandId) {
-      config.value.selectedCommandId = 'polish-none'
+      config.value.selectedCommandId = 'polish-oral'
     }
   }
   catch (error) {
@@ -281,44 +278,9 @@ function goToProviderConfig() {
       </div>
 
       <div v-else class="grid grid-cols-2 gap-3">
-        <!-- No Polish Card -->
-        <button
-          class="group rounded-xl border p-4 text-left transition-all relative"
-          :class="config?.selectedCommandId === 'polish-none' || !config?.selectedCommandId
-            ? 'border-yl-brand-400 bg-yl-brand-50 ring-1 ring-yl-brand-100'
-            : 'border-yl-line-180 bg-yl-paper-250 hover:border-yl-brand-300 hover:bg-yl-paper-300'"
-          @click="setCommand('polish-none')"
-        >
-          <div class="flex items-start gap-3">
-            <div
-              class="w-9 h-9 rounded-lg flex items-center justify-center transition-colors"
-              :class="config?.selectedCommandId === 'polish-none' || !config?.selectedCommandId
-                ? 'bg-yl-brand-200 text-yl-brand-700'
-                : 'bg-yl-paper-300 text-yl-muted-400 group-hover:bg-yl-paper-200'"
-            >
-              <Icon name="lucide:align-left" size="w-5 h-5" />
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="font-medium text-yl-ink-550">
-                不润色
-              </div>
-              <div class="text-xs text-yl-muted-400 mt-0.5">
-                直接输出原文
-              </div>
-            </div>
-          </div>
-          <!-- Selected Indicator -->
-          <div
-            v-if="config?.selectedCommandId === 'polish-none' || !config?.selectedCommandId"
-            class="absolute top-2 right-2 w-5 h-5 rounded-full bg-yl-brand-500 flex items-center justify-center"
-          >
-            <Icon name="lucide:check" size="w-3.5 h-3.5" class-name="text-white" />
-          </div>
-        </button>
-
         <!-- Command Cards -->
         <button
-          v-for="command in allCommands.filter(c => c.id !== 'polish-none')"
+          v-for="command in allCommands"
           :key="command.id"
           class="group rounded-xl border p-4 text-left transition-all relative overflow-hidden"
           :class="config?.selectedCommandId === command.id

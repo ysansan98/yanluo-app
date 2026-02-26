@@ -79,6 +79,19 @@ interface HistoryApi {
   }) => Promise<
     { ok: true, mime: string, base64: string } | { ok: false, message: string }
   >
+  onCreated: (listener: (entry: {
+    id: string
+    source: 'live'
+    entryType: 'asr_only' | 'polish'
+    commandName: string | null
+    text: string
+    textLength: number
+    language: string
+    elapsedMs: number
+    audioPath: string | null
+    triggeredAt: number
+    createdAt: number
+  }) => void) => () => void
 }
 
 interface OnboardingApi {

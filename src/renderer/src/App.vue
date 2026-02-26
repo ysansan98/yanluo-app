@@ -4,7 +4,7 @@ import type {
   MenuItem,
   MenuKey,
 } from './types/ui'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import AboutPanel from './components/AboutPanel.vue'
 import AiProviderPanel from './components/AiProviderPanel.vue'
 import AppSidebar from './components/AppSidebar.vue'
@@ -29,6 +29,7 @@ const menuItems: MenuItem[] = [
 const activeMenu = ref<MenuKey>('home')
 const historyEntries = ref<HistoryEntry[]>([])
 const resultCardRef = ref<HTMLElement | null>(null)
+let unsubscribeHistoryCreated: (() => void) | null = null
 
 // 引导页面状态
 const showOnboarding = ref(false)
@@ -199,6 +200,15 @@ onMounted(async () => {
       ],
     })
   })
+
+  // 监听历史记录创建事件，实时更新首页列表
+  unsubscribeHistoryCreated = window.api.history.onCreated((entry) => {
+    historyEntries.value.unshift(entry)
+  })
+})
+
+onUnmounted(() => {
+  unsubscribeHistoryCreated?.()
 })
 
 // 简单的对话框实现
@@ -230,16 +240,10 @@ function closeDialog() {
 
 <template>
   <div
-    class="min-h-screen bg-[radial-gradient(circle_at_12%_6%,var(--color-yl-paper-400)_0,var(--color-yl-paper-300)_38%,var(--color-yl-paper-500)_100%)] px-6 pt-12 pb-5 text-yl-ink-900 font-yl-sans"
+    class="min-h-screen px-6 pt-12 pb-5 text-yl-ink-900 font-yl-sans"
   >
     <div
       class="fixed inset-x-0 top-0 z-60 h-11 bg-transparent [-webkit-app-region:drag]"
-    />
-    <div
-      class="pointer-events-none fixed inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_85%_10%,rgba(95,116,162,0.2),rgba(95,116,162,0))]"
-    />
-    <div
-      class="pointer-events-none fixed inset-x-0 bottom-0 h-56 bg-[radial-gradient(circle_at_10%_90%,rgba(200,93,58,0.14),rgba(200,93,58,0))]"
     />
     <div class="relative mx-auto max-w-410 space-y-4">
       <AppSidebar

@@ -157,7 +157,7 @@ export class PolishEngine {
     }
 
     // Check if a command is selected
-    if (!settings.polish.selectedCommandId || settings.polish.selectedCommandId === 'polish-none') {
+    if (!settings.polish.selectedCommandId) {
       return { ok: false, reason: '未选择润色指令' }
     }
 

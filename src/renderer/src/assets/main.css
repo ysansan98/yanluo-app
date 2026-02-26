@@ -1,1 +1,23 @@
 @import "./tailwind.css";
+
+/* 纯色背景 + 滚动条稳定 */
+html, body {
+  background: #f8f4ec;
+  scrollbar-gutter: stable;
+}
+
+body {
+  min-height: 100vh;
+}
+
+/* 滚动条轨道背景与页面一致 */
+::-webkit-scrollbar {
+  width: 12px;
+}
+::-webkit-scrollbar-track {
+  background: #f8f4ec;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 6px;
+}

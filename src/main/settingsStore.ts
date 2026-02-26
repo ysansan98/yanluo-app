@@ -62,33 +62,26 @@ type AppSettings = AppSettingsV2
 
 export const BUILT_IN_POLISH_COMMANDS: PolishCommand[] = [
   {
-    id: 'polish-none',
-    name: '不润色',
-    promptTemplate: '{{text}}',
-    isBuiltIn: true,
-    order: 0,
-  },
-  {
     id: 'polish-oral',
     name: '去口语化',
     promptTemplate:
       '请将以下口语化内容转为正式书面语，去除冗余词、口头禅和重复内容，保持原意：\n\n{{text}}',
     isBuiltIn: true,
-    order: 1,
+    order: 0,
   },
   {
     id: 'polish-concise',
     name: '精简表达',
     promptTemplate: '请将以下内容精简表达，去除冗余信息，保留核心要点：\n\n{{text}}',
     isBuiltIn: true,
-    order: 2,
+    order: 1,
   },
   {
     id: 'translate-en',
     name: '翻译为英文',
     promptTemplate: '请将以下内容翻译为地道、专业的英文：\n\n{{text}}',
     isBuiltIn: true,
-    order: 3,
+    order: 2,
   },
   {
     id: 'work-report',
@@ -96,7 +89,7 @@ export const BUILT_IN_POLISH_COMMANDS: PolishCommand[] = [
     promptTemplate:
       '请将以下内容整理为工作汇报格式，包含背景、行动、结果三个部分：\n\n{{text}}',
     isBuiltIn: true,
-    order: 4,
+    order: 3,
   },
   {
     id: 'meeting-minutes',
@@ -127,7 +120,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   },
   polish: {
     enabled: false,
-    selectedCommandId: null,
+    selectedCommandId: 'polish-oral',
     temperature: 0.3,
     maxTokens: 2000,
     customCommands: [],
