@@ -1,12 +1,11 @@
 export type MenuKey
   = | 'home'
-    | 'workbench'
     | 'polish'
     | 'provider'
     | 'settings'
     | 'about'
 
-export type TranscriptSource = 'file' | 'live'
+export type TranscriptSource = 'live'
 export type HistoryEntryType = 'asr_only' | 'polish'
 
 export interface MenuItem {

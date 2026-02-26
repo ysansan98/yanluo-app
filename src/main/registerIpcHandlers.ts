@@ -8,7 +8,7 @@ import type { PermissionChecker, SessionOrchestrator } from './voice/types'
 import { existsSync, readFileSync } from 'node:fs'
 import { extname } from 'node:path'
 import process from 'node:process'
-import { clipboard, dialog, ipcMain } from 'electron'
+import { clipboard, ipcMain } from 'electron'
 import { VAD_CONFIG_IPC } from '~shared/voice'
 import { getModelDir, getModelId, modelExists } from './modelManager'
 import { polishEngine } from './polish/polishEngine'
@@ -39,20 +39,7 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
     onOnboardingComplete,
   } = options
 
-  ipcMain.on('ping', () => console.warn('pong'))
   ipcMain.handle('asr:health', async () => asrService.health())
-  ipcMain.handle(
-    'asr:transcribeFile',
-    async (_event, path: string, language?: string) => {
-      const res = await asrService.transcribeFile(path, language)
-      console.warn('[asr:transcribeFile] response', {
-        language: res.language,
-        textLength: res.text?.length ?? 0,
-        elapsedMs: res.elapsed_ms,
-      })
-      return res
-    },
-  )
   ipcMain.handle('asr:modelInfo', async () => ({
     modelId: getModelId(),
     modelDir: getModelDir(),
@@ -68,25 +55,6 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
       return { status: 'running' as const }
     await modelDownloader.start(mainWindow)
     return { status: 'ok' as const }
-  })
-  ipcMain.handle('asr:pickAudioFile', async () => {
-    const mainWindow = getMainWindow()
-    if (!mainWindow)
-      throw new Error('Window not ready')
-    const result = await dialog.showOpenDialog(mainWindow, {
-      title: 'Select audio file',
-      properties: ['openFile'],
-      filters: [
-        {
-          name: 'Audio',
-          extensions: ['wav', 'mp3', 'm4a', 'flac', 'ogg', 'aac', 'webm'],
-        },
-        { name: 'All Files', extensions: ['*'] },
-      ],
-    })
-    if (result.canceled || result.filePaths.length === 0)
-      return null
-    return result.filePaths[0]
   })
   ipcMain.handle('voice:recording:start', async () => {
     console.log('[!!!] IPC voice:recording:start CALLED !!!')
@@ -151,7 +119,7 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
     async (
       _event,
       payload: {
-        source: 'file' | 'live'
+        source: 'live'
         entryType: 'asr_only' | 'polish'
         commandName?: string | null
         text: string

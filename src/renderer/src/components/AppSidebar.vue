@@ -15,8 +15,6 @@ const emit = defineEmits<{
 function menuIcon(key: MenuKey): string {
   if (key === 'home')
     return '⌂'
-  if (key === 'workbench')
-    return '⦿'
   if (key === 'polish')
     return '✦'
   if (key === 'provider')

@@ -33,16 +33,11 @@ interface AsrApi {
   onDownloadProgress: (
     handler: (progress: DownloadProgress) => void,
   ) => () => void
-  transcribeFile: (
-    path: string,
-    language?: string,
-  ) => Promise<{ text: string, language: string, elapsed_ms?: number }>
-  pickAudioFile: () => Promise<string | null>
 }
 
 interface HistoryApi {
   create: (payload: {
-    source: 'file' | 'live'
+    source: 'live'
     entryType: 'asr_only' | 'polish'
     commandName?: string | null
     text: string
@@ -52,7 +47,7 @@ interface HistoryApi {
     triggeredAt?: number
   }) => Promise<{
     id: string
-    source: 'file' | 'live'
+    source: 'live'
     entryType: 'asr_only' | 'polish'
     commandName: string | null
     text: string
@@ -66,7 +61,7 @@ interface HistoryApi {
   list: (payload?: { limit?: number }) => Promise<
     Array<{
       id: string
-      source: 'file' | 'live'
+      source: 'live'
       entryType: 'asr_only' | 'polish'
       commandName: string | null
       text: string

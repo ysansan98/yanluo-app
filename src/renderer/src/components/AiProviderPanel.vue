@@ -451,7 +451,7 @@ async function saveCustomProvider() {
     <!-- Custom Provider Modal -->
     <div
       v-if="showCustomModal"
-      class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      class="fixed inset-0 z-100 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       @click.self="showCustomModal = false"
     >
       <div class="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6 max-h-[90vh] overflow-y-auto">

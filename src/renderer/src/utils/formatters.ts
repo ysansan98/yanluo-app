@@ -24,7 +24,6 @@ export function formatTime(timestamp: number): string {
 
 export function sourceLabel(source: TranscriptSource): string {
   const labels: Record<TranscriptSource, string> = {
-    file: '文件上传',
     live: '实时识别',
   }
   return labels[source] || source

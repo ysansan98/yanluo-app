@@ -615,38 +615,38 @@ onUnmounted(() => {
           </div>
         </div>
       </article>
-
-      <article
-        class="rounded-3xl border border-yl-line-350/50 bg-white/88 p-5 shadow-yl-card"
-      >
-        <div class="text-base font-bold text-yl-ink-650">
-          录音参数
-        </div>
-        <div class="mt-2 flex flex-wrap items-center gap-2">
-          <label class="text-sm text-yl-ink-450">Continue Window(ms)</label>
-          <input
-            :value="props.continueWindowMsInput"
-            class="w-32 rounded-lg border border-yl-line-300 bg-white px-2.5 py-1.5 text-sm"
-            @input="
-              emit(
-                'update:continueWindowMsInput',
-                ($event.target as HTMLInputElement).value,
-              )
-            "
-          >
-          <AppActionButton
-            variant="outline"
-            size="sm"
-            @click="emit('applyContinueWindowMs')"
-          >
-            应用
-          </AppActionButton>
-        </div>
-        <div class="mt-2 text-xs text-yl-muted-390">
-          当前状态：{{ props.liveStatus }}
-        </div>
-      </article>
     </section>
+
+    <article
+      class="rounded-3xl border border-yl-line-350/50 bg-white/88 p-5 shadow-yl-card"
+    >
+      <div class="text-base font-bold text-yl-ink-650">
+        录音参数
+      </div>
+      <div class="mt-2 flex flex-wrap items-center gap-2">
+        <label class="text-sm text-yl-ink-450">Continue Window(ms)</label>
+        <input
+          :value="props.continueWindowMsInput"
+          class="w-32 rounded-lg border border-yl-line-300 bg-white px-2.5 py-1.5 text-sm"
+          @input="
+            emit(
+              'update:continueWindowMsInput',
+              ($event.target as HTMLInputElement).value,
+            )
+          "
+        >
+        <AppActionButton
+          variant="outline"
+          size="sm"
+          @click="emit('applyContinueWindowMs')"
+        >
+          应用
+        </AppActionButton>
+      </div>
+      <div class="mt-2 text-xs text-yl-muted-390">
+        当前状态：{{ props.liveStatus }}
+      </div>
+    </article>
 
     <article
       class="rounded-3xl border border-yl-line-350/50 bg-white/88 p-5 shadow-yl-card"
@@ -691,9 +691,7 @@ onUnmounted(() => {
               )
             "
           >
-          <span class="text-sm text-yl-ink-450 w-12">{{
-            props.vadThresholdInput
-          }}</span>
+          <span class="text-sm text-yl-ink-450 w-12">{{ props.vadThresholdInput }}</span>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">

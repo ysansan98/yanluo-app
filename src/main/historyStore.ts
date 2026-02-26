@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import Database from 'better-sqlite3'
 import { app } from 'electron'
 
-export type HistorySource = 'file' | 'live'
+export type HistorySource = 'live'
 export type HistoryEntryType = 'asr_only' | 'polish'
 
 export interface CreateHistoryEntryPayload {

@@ -50,6 +50,20 @@ const { hotkeyManager, sessionOrchestrator, permissionChecker, initHotkey }
     onUiFinal: (payload) => {
       voiceHudManager.showFinal(payload)
       sendToMainWindow(VOICE_IPC.UI_FINAL, payload)
+
+      // 创建历史记录
+      const settings = settingsStore.get()
+      const commandName = settings.polish.enabled && settings.polish.selectedCommandId
+        ? settingsStore.getAllPolishCommands().find(c => c.id === settings.polish.selectedCommandId)?.name ?? null
+        : null
+      void historyStore.create({
+        source: 'live',
+        entryType: settings.polish.enabled && settings.polish.selectedCommandId ? 'polish' : 'asr_only',
+        commandName,
+        text: payload.finalText,
+        audioPath: payload.audioPath,
+        triggeredAt: Date.now(),
+      })
     },
     onUiHide: () => {
       voiceHudManager.hide(300, 'session-end')

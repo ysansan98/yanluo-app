@@ -3,7 +3,6 @@ import type {
   HistoryEntry,
   MenuItem,
   MenuKey,
-  TranscriptSource,
 } from './types/ui'
 import { computed, onMounted, ref } from 'vue'
 import AboutPanel from './components/AboutPanel.vue'
@@ -13,7 +12,6 @@ import HomePage from './components/HomePage.vue'
 import OnboardingModal from './components/onboarding/OnboardingModal.vue'
 import PolishCommandPanel from './components/PolishCommandPanel.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
-import WorkbenchPage from './components/WorkbenchPage.vue'
 import { useAsrPage } from './composables/useAsrPage'
 import { formatDuration } from './utils'
 
@@ -22,9 +20,8 @@ const isCapturingShortcut = ref(false)
 
 const menuItems: MenuItem[] = [
   { key: 'home', label: '首页', hint: '统计与最近历史' },
-  { key: 'workbench', label: '识别工作台', hint: '录音与文件识别' },
-  { key: 'polish', label: '润色指令', hint: '先保留入口' },
-  { key: 'provider', label: 'AI 服务商配置', hint: '先保留入口' },
+  { key: 'polish', label: '润色指令', hint: '语音润色处理' },
+  { key: 'provider', label: 'AI 服务商配置', hint: '配置大模型服务商' },
   { key: 'settings', label: '设置', hint: '快捷键 / 麦克风 / 权限' },
   { key: 'about', label: '关于', hint: '版本与反馈入口' },
 ]
@@ -35,38 +32,6 @@ const resultCardRef = ref<HTMLElement | null>(null)
 
 // 引导页面状态
 const showOnboarding = ref(false)
-
-function addHistory(payload: {
-  source: TranscriptSource
-  entryType?: 'asr_only' | 'polish'
-  commandName?: string | null
-  text: string
-  language?: string
-  elapsedMs: number
-  audioPath?: string | null
-}): void {
-  const text = payload.text.trim()
-  if (!text)
-    return
-
-  void window.api.history
-    .create({
-      source: payload.source,
-      entryType: payload.entryType ?? 'asr_only',
-      commandName: payload.commandName ?? null,
-      text,
-      language: payload.language,
-      elapsedMs: payload.elapsedMs,
-      audioPath: payload.audioPath ?? null,
-      triggeredAt: Date.now(),
-    })
-    .then((entry) => {
-      historyEntries.value = [entry, ...historyEntries.value].slice(0, 200)
-    })
-    .catch((error) => {
-      console.error('failed to persist history entry', error)
-    })
-}
 
 function clearHistory(): void {
   void window.api.history
@@ -90,32 +55,6 @@ function isToday(timestamp: number): boolean {
 }
 
 // 工具函数已从 composables/useFormatters.ts 导入，不再在此定义
-
-const {
-  applyContinueWindowMs,
-  checkHealth,
-  continueWindowMsInput,
-  filePath,
-  language,
-  liveElapsedMs,
-  liveFinalText,
-  liveIsRecording,
-  livePartialText,
-  liveStatus,
-  pickAudioFile,
-  status,
-  toggleLiveRecording,
-  transcribe,
-  vadEnabled,
-  vadThresholdInput,
-  vadMinSpeechMsInput,
-  vadRedemptionMsInput,
-  vadMinDurationMsInput,
-  applyVadConfig,
-} = useAsrPage({
-  resultCardRef,
-  onTranscriptCreated: addHistory,
-})
 
 const todayUsageCount = computed(
   () => historyEntries.value.filter(item => isToday(item.triggeredAt)).length,
@@ -175,6 +114,21 @@ const chromeVersion = computed(
 const nodeVersion = computed(
   () => window.electron?.process?.versions?.node ?? '-',
 )
+
+const {
+  applyContinueWindowMs,
+  continueWindowMsInput,
+  liveStatus,
+  vadEnabled,
+  vadThresholdInput,
+  vadMinSpeechMsInput,
+  vadRedemptionMsInput,
+  vadMinDurationMsInput,
+  applyVadConfig,
+} = useAsrPage({
+  resultCardRef,
+  onTranscriptCreated: () => {},
+})
 
 const micPermissionHint = computed(() => {
   if (liveStatus.value.toLowerCase().includes('permission'))
@@ -300,24 +254,6 @@ function closeDialog() {
           :stat-cards="statCards"
           :recent-history="recentHistory"
           @clear-history="clearHistory"
-        />
-
-        <WorkbenchPage
-          v-else-if="activeMenu === 'workbench'"
-          :live-status="liveStatus"
-          :live-elapsed-ms="liveElapsedMs"
-          :live-is-recording="liveIsRecording"
-          :live-partial-text="livePartialText"
-          :live-final-text="liveFinalText"
-          :file-path="filePath"
-          :language="language"
-          :status="status"
-          @update:file-path="filePath = $event"
-          @update:language="language = $event"
-          @toggle-live-recording="toggleLiveRecording"
-          @pick-audio-file="pickAudioFile"
-          @transcribe="transcribe"
-          @check-health="checkHealth"
         />
 
         <PolishCommandPanel

@@ -30,9 +30,6 @@ const api = {
       ipcRenderer.on('asr:downloadLog', listener)
       return () => ipcRenderer.removeListener('asr:downloadLog', listener)
     },
-    transcribeFile: (path: string, language?: string) =>
-      ipcRenderer.invoke('asr:transcribeFile', path, language),
-    pickAudioFile: () => ipcRenderer.invoke('asr:pickAudioFile'),
   },
   history: {
     create: (payload: {

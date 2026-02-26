@@ -1,31 +1,18 @@
 import type { Ref } from 'vue'
 import type { VadConfig } from '~shared/voice'
-import type { AsrModelInfo } from '../types/asr'
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 
 interface UseAsrPageOptions {
   resultCardRef: Ref<HTMLElement | null>
   onTranscriptCreated?: (payload: {
-    source: 'file' | 'live'
+    source: 'live'
     text: string
-    language?: string
     elapsedMs: number
     audioPath?: string | null
   }) => void
 }
 
 export function useAsrPage(options: UseAsrPageOptions) {
-  const filePath = ref<string>('')
-  const language = ref<string>('')
-  const status = ref<string>('')
-  const transcriptChars = ref<number>(0)
-  const transcriptElapsedMs = ref<number>(0)
-  const resultText = ref<string>('')
-  const resultLanguage = ref<string>('')
-  const lastResponseJson = ref<string>('')
-  const modelInfo = ref<AsrModelInfo | null>(null)
-  const downloadLogs = ref<string>('')
-  let unsubscribeLogs: (() => void) | null = null
   const liveIsRecording = ref<boolean>(false)
   const liveStatus = ref<string>('Idle')
   const livePartialText = ref<string>('')
@@ -40,98 +27,6 @@ export function useAsrPage(options: UseAsrPageOptions) {
   const vadMinSpeechMsInput = ref<string>('150')
   const vadRedemptionMsInput = ref<string>('150')
   const vadMinDurationMsInput = ref<string>('300')
-
-  async function refreshModelInfo(): Promise<void> {
-    modelInfo.value = await window.api.asr.modelInfo()
-  }
-
-  async function startDownload(): Promise<void> {
-    status.value = 'Starting download...'
-    try {
-      const res = await window.api.asr.downloadModel()
-      if (res.status === 'exists') {
-        status.value = 'Model already downloaded'
-      }
-      else if (res.status === 'running') {
-        status.value = 'Download already running'
-      }
-      else {
-        status.value = 'Downloading...'
-      }
-      await refreshModelInfo()
-    }
-    catch (err) {
-      status.value = err instanceof Error ? err.message : String(err)
-    }
-  }
-
-  async function pickAudioFile(): Promise<void> {
-    const selected = await window.api.asr.pickAudioFile()
-    if (!selected)
-      return
-    filePath.value = selected
-    transcriptChars.value = 0
-    transcriptElapsedMs.value = 0
-    resultText.value = ''
-    resultLanguage.value = ''
-    lastResponseJson.value = ''
-  }
-
-  async function transcribe(): Promise<void> {
-    if (!filePath.value)
-      return
-    status.value = 'Transcribing...'
-    try {
-      const res = await window.api.asr.transcribeFile(
-        filePath.value,
-        language.value.trim() || undefined,
-      )
-      lastResponseJson.value = JSON.stringify(res, null, 2)
-      resultText.value
-        = typeof res.text === 'string' ? res.text : String(res.text ?? '')
-      resultLanguage.value = res.language
-      transcriptElapsedMs.value = Number(res.elapsed_ms ?? 0)
-      transcriptChars.value = resultText.value.length
-      status.value
-        = transcriptChars.value > 0
-          ? `Done (chars=${transcriptChars.value}, elapsed=${transcriptElapsedMs.value}ms)`
-          : 'Done (empty transcript)'
-      options.onTranscriptCreated?.({
-        source: 'file',
-        text: resultText.value,
-        language: resultLanguage.value,
-        elapsedMs: transcriptElapsedMs.value,
-        audioPath: filePath.value,
-      })
-      await nextTick()
-      options.resultCardRef.value?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      })
-    }
-    catch (err) {
-      lastResponseJson.value = ''
-      status.value = err instanceof Error ? err.message : String(err)
-    }
-  }
-
-  async function checkHealth(): Promise<void> {
-    status.value = 'Checking ASR service...'
-    try {
-      const res = await window.api.asr.health()
-      if (res.model_loaded) {
-        status.value = 'ASR service ready'
-      }
-      else {
-        status.value = res.model_error
-          ? `ASR error: ${res.model_error}`
-          : 'ASR loading...'
-      }
-    }
-    catch (err) {
-      status.value = err instanceof Error ? err.message : String(err)
-    }
-  }
 
   async function startLiveRecording(): Promise<void> {
     liveStatus.value = 'Starting...'
@@ -206,16 +101,12 @@ export function useAsrPage(options: UseAsrPageOptions) {
   }
 
   onMounted(async () => {
-    await refreshModelInfo()
     const voiceConfig = await window.api.voice.getConfig()
     continueWindowMsInput.value = String(voiceConfig.continueWindowMs)
 
     // Load VAD config
     await loadVadConfig()
 
-    unsubscribeLogs = window.api.asr.onDownloadLog((payload) => {
-      downloadLogs.value += `[${payload.type}] ${payload.message}\n`
-    })
     voiceUnsubscribers.push(
       window.api.voice.onShow((payload) => {
         livePartialText.value = ''
@@ -247,7 +138,6 @@ export function useAsrPage(options: UseAsrPageOptions) {
             ? 'Done (pasted)'
             : 'Done (copied to clipboard)'
         liveFinalText.value = payload.finalText
-        resultText.value = payload.finalText
         options.onTranscriptCreated?.({
           source: 'live',
           text: payload.finalText,
@@ -283,7 +173,6 @@ export function useAsrPage(options: UseAsrPageOptions) {
   })
 
   onBeforeUnmount(() => {
-    unsubscribeLogs?.()
     for (const dispose of voiceUnsubscribers) {
       dispose()
     }
@@ -291,28 +180,13 @@ export function useAsrPage(options: UseAsrPageOptions) {
 
   return {
     applyContinueWindowMs,
-    checkHealth,
     continueWindowMsInput,
-    downloadLogs,
-    filePath,
-    language,
-    lastResponseJson,
     liveElapsedMs,
     liveFinalText,
     liveIsRecording,
     livePartialText,
     liveStatus,
-    modelInfo,
-    pickAudioFile,
-    refreshModelInfo,
-    resultLanguage,
-    resultText,
-    startDownload,
-    status,
     toggleLiveRecording,
-    transcribe,
-    transcriptChars,
-    transcriptElapsedMs,
     // VAD
     vadEnabled,
     vadThresholdInput,
