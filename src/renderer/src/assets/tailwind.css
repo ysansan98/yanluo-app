@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --font-yl-sans: "IBM Plex Sans", "Avenir Next", sans-serif;
-  --font-yl-mono: "IBM Plex Mono", "JetBrains Mono", monospace;
+  --font-yl-sans: "LXGW WenKai Mono Lite", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-yl-mono: "LXGW WenKai Mono Lite", "IBM Plex Mono", "JetBrains Mono", monospace;
 
   --color-yl-ink-900: #1f2430;
   --color-yl-ink-700: #2a354f;
