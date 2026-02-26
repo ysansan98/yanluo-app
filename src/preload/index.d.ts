@@ -116,10 +116,93 @@ interface ClipboardApi {
   writeText: (text: string) => Promise<{ ok: boolean, error?: string }>
 }
 
+// AI Provider Types
+interface AiProviderInfo {
+  id: string
+  name: string
+  npm: string
+  api: string | null
+  env: string[]
+  doc: string
+  models: Record<string, {
+    id: string
+    name: string
+    limit: { context?: number, output?: number, input?: number }
+  }>
+}
+
+interface AiProviderUserConfig {
+  enabled: boolean
+  apiKey: string // masked as '********' in renderer
+  customApiEndpoint?: string
+  selectedModelId?: string
+}
+
+interface AiRegistry {
+  providers: Record<string, AiProviderInfo>
+}
+
+interface AiApi {
+  getRegistry: () => Promise<AiRegistry>
+  getConfig: () => Promise<{
+    providers: Record<string, AiProviderUserConfig>
+    activeProviderId: string | null
+    activeModelId: string | null
+  }>
+  setProviderConfig: (providerId: string, config: {
+    apiKey?: string
+    customApiEndpoint?: string
+    selectedModelId?: string
+  }) => Promise<{ ok: boolean }>
+  removeProviderConfig: (providerId: string) => Promise<{ ok: boolean }>
+  setActiveProvider: (providerId: string | null, modelId: string | null) => Promise<{ ok: boolean }>
+  checkConfigured: () => Promise<{
+    hasEnabledProvider: boolean
+    isActiveProviderValid: boolean
+  }>
+  validateProvider: (providerId: string, modelId: string) => Promise<{
+    ok: boolean
+    message?: string
+    error?: string
+  }>
+}
+
+// Polish Types
+interface PolishCommand {
+  id: string
+  name: string
+  icon?: string
+  promptTemplate: string
+  isBuiltIn: boolean
+  order: number
+}
+
+interface PolishApi {
+  getConfig: () => Promise<{
+    enabled: boolean
+    selectedCommandId: string | null
+    temperature: number
+    maxTokens: number
+  }>
+  setEnabled: (enabled: boolean) => Promise<{ ok: boolean }>
+  setCommand: (commandId: string | null) => Promise<{ ok: boolean }>
+  getCommands: () => Promise<PolishCommand[]>
+  updateSettings: (payload: { temperature?: number, maxTokens?: number }) => Promise<{ ok: boolean }>
+  addCommand?: (command: {
+    id: string
+    name: string
+    promptTemplate: string
+    icon?: string
+  }) => Promise<{ ok: boolean }>
+  removeCommand?: (commandId: string) => Promise<{ ok: boolean }>
+}
+
 interface AppApi {
   asr: AsrApi
   history: HistoryApi
   voice: VoiceBridgeApi
+  ai: AiApi
+  polish: PolishApi
   onboarding: OnboardingApi
   permission: PermissionApi
   shortcut: ShortcutApi

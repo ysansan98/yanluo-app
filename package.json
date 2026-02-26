@@ -35,8 +35,13 @@
     "test:all": "pnpm run test:unit && pnpm run test:e2e"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.47",
+    "@ai-sdk/google": "^3.0.31",
+    "@ai-sdk/openai": "^3.0.33",
+    "@ai-sdk/openai-compatible": "^2.0.30",
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
+    "ai": "^6.0.99",
     "better-sqlite3": "^12.6.2",
     "electron-store": "^11.0.2",
     "electron-updater": "^6.3.9",

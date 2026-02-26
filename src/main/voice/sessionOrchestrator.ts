@@ -1,3 +1,4 @@
+import type { PolishResult } from '../polish/polishEngine'
 import type { SettingsStore } from '../settingsStore'
 import type {
   AsrFinalResponse,
@@ -629,6 +630,66 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
         || !this.isSessionCurrent(sessionId)
       ) {
         this.log('finalize stopped before inject due to session preemption', {
+          sessionId,
+        })
+        return
+      }
+
+      // ===== POLISH INTEGRATION =====
+      const { polishEngine } = await import('../polish/polishEngine')
+      const canPolish = polishEngine.canPolish()
+
+      if (canPolish.ok) {
+        this.log('starting polish', { sessionId, originalLength: resolvedText.length })
+        this.transition('POLISHING', { sessionId })
+        this.deps.onUiUpdate?.({
+          sessionId,
+          status: 'finalizing',
+          partialText: '润色中...',
+          elapsedMs: Date.now() - session.metrics.startedAt,
+        })
+
+        const settings = this.deps.settingsStore.get()
+        const polishResult: PolishResult = await polishEngine.polish({
+          text: resolvedText,
+          commandId: settings.polish.selectedCommandId!,
+        })
+
+        if (!this.isSessionCurrent(sessionId)) {
+          this.log('polish result ignored due to session change', { sessionId })
+          return
+        }
+
+        if (polishResult.success) {
+          this.log('polish completed', {
+            sessionId,
+            originalLength: resolvedText.length,
+            polishedLength: polishResult.text.length,
+          })
+          resolvedText = polishResult.text
+        }
+        else {
+          this.log('polish failed, using original text', {
+            sessionId,
+            error: polishResult.error,
+          })
+          // Show error toast but continue with original text
+          this.deps.onUiToast?.({
+            type: 'warning',
+            message: `润色失败: ${polishResult.error || '未知错误'}，使用原文`,
+          })
+        }
+      }
+      else {
+        this.log('skipping polish', { sessionId, reason: canPolish.reason })
+      }
+      // ===== END POLISH INTEGRATION =====
+
+      if (
+        this.isSessionPreempted(sessionId)
+        || !this.isSessionCurrent(sessionId)
+      ) {
+        this.log('finalize stopped after polish due to session preemption', {
           sessionId,
         })
         return

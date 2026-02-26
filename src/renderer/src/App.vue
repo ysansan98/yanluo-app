@@ -7,10 +7,11 @@ import type {
 } from './types/ui'
 import { computed, onMounted, ref } from 'vue'
 import AboutPanel from './components/AboutPanel.vue'
+import AiProviderPanel from './components/AiProviderPanel.vue'
 import AppSidebar from './components/AppSidebar.vue'
-import ComingSoonPanel from './components/ComingSoonPanel.vue'
 import HomePage from './components/HomePage.vue'
 import OnboardingModal from './components/onboarding/OnboardingModal.vue'
+import PolishCommandPanel from './components/PolishCommandPanel.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import WorkbenchPage from './components/WorkbenchPage.vue'
 import { useAsrPage } from './composables/useAsrPage'
@@ -278,7 +279,7 @@ function closeDialog() {
     class="min-h-screen bg-[radial-gradient(circle_at_12%_6%,var(--color-yl-paper-400)_0,var(--color-yl-paper-300)_38%,var(--color-yl-paper-500)_100%)] px-6 pt-12 pb-5 text-yl-ink-900 font-yl-sans"
   >
     <div
-      class="fixed inset-x-0 top-0 z-[60] h-11 bg-transparent [-webkit-app-region:drag]"
+      class="fixed inset-x-0 top-0 z-60 h-11 bg-transparent [-webkit-app-region:drag]"
     />
     <div
       class="pointer-events-none fixed inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_85%_10%,rgba(95,116,162,0.2),rgba(95,116,162,0))]"
@@ -286,7 +287,7 @@ function closeDialog() {
     <div
       class="pointer-events-none fixed inset-x-0 bottom-0 h-56 bg-[radial-gradient(circle_at_10%_90%,rgba(200,93,58,0.14),rgba(200,93,58,0))]"
     />
-    <div class="relative mx-auto max-w-[1640px] space-y-4">
+    <div class="relative mx-auto max-w-410 space-y-4">
       <AppSidebar
         :menu-items="menuItems"
         :active-menu="activeMenu"
@@ -319,19 +320,12 @@ function closeDialog() {
           @check-health="checkHealth"
         />
 
-        <ComingSoonPanel
+        <PolishCommandPanel
           v-else-if="activeMenu === 'polish'"
-          title="润色指令"
-          description="功能尚未接入，当前仅保留菜单入口。"
-          note="规划建议：支持 Prompt 模板库、变量插值、快捷调用和执行历史。"
+          @switch-menu="activeMenu = $event as MenuKey"
         />
 
-        <ComingSoonPanel
-          v-else-if="activeMenu === 'provider'"
-          title="AI 服务商配置"
-          description="功能尚未接入，当前仅保留入口。"
-          note="规划建议：配置 API Key、模型、超时、重试与回退策略。"
-        />
+        <AiProviderPanel v-else-if="activeMenu === 'provider'" />
 
         <SettingsPanel
           v-else-if="activeMenu === 'settings'"
@@ -374,10 +368,10 @@ function closeDialog() {
   <!-- 提示对话框 -->
   <div
     v-if="showDialogRef && dialog"
-    class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+    class="fixed inset-0 z-100 flex items-center justify-center bg-black/50 backdrop-blur-sm"
     @click="closeDialog"
   >
-    <div class="w-[400px] bg-white rounded-2xl shadow-2xl p-6" @click.stop>
+    <div class="w-100 bg-white rounded-2xl shadow-2xl p-6" @click.stop>
       <h3 class="text-lg font-bold text-yl-ink-700 mb-2">
         {{ dialog.title }}
       </h3>

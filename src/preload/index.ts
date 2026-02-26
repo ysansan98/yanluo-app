@@ -83,6 +83,42 @@ const api = {
   clipboard: {
     writeText: (text: string) => ipcRenderer.invoke('clipboard:writeText', text),
   },
+  // AI Provider API
+  ai: {
+    getRegistry: () => ipcRenderer.invoke('ai:getRegistry'),
+    getConfig: () => ipcRenderer.invoke('ai:getConfig'),
+    setProviderConfig: (providerId: string, config: {
+      apiKey?: string
+      customApiEndpoint?: string
+      selectedModelId?: string
+    }) => ipcRenderer.invoke('ai:setProviderConfig', providerId, config),
+    removeProviderConfig: (providerId: string) =>
+      ipcRenderer.invoke('ai:removeProviderConfig', providerId),
+    setActiveProvider: (providerId: string | null, modelId: string | null) =>
+      ipcRenderer.invoke('ai:setActiveProvider', providerId, modelId),
+    checkConfigured: () => ipcRenderer.invoke('ai:checkConfigured'),
+    validateProvider: (providerId: string, modelId: string) =>
+      ipcRenderer.invoke('ai:validateProvider', providerId, modelId),
+  },
+  // Polish API
+  polish: {
+    getConfig: () => ipcRenderer.invoke('polish:getConfig'),
+    setEnabled: (enabled: boolean) =>
+      ipcRenderer.invoke('polish:setEnabled', enabled),
+    setCommand: (commandId: string | null) =>
+      ipcRenderer.invoke('polish:setCommand', commandId),
+    getCommands: () => ipcRenderer.invoke('polish:getCommands'),
+    updateSettings: (payload: { temperature?: number, maxTokens?: number }) =>
+      ipcRenderer.invoke('polish:updateSettings', payload),
+    addCommand: (command: {
+      id: string
+      name: string
+      promptTemplate: string
+      icon?: string
+    }) => ipcRenderer.invoke('polish:addCommand', command),
+    removeCommand: (commandId: string) =>
+      ipcRenderer.invoke('polish:removeCommand', commandId),
+  },
   // 应用级事件
   app: {
     onShowOnboarding: (handler: () => void) => {

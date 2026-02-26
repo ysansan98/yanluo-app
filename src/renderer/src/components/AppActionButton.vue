@@ -17,7 +17,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const classes = computed(() => {
   const base
-    = 'cursor-pointer rounded-full border font-semibold transition disabled:cursor-not-allowed disabled:opacity-55'
+    = 'cursor-pointer rounded-full border font-semibold transition disabled:cursor-not-allowed disabled:opacity-55 flex-shrink-0 whitespace-nowrap inline-flex items-center justify-center'
 
   let variantClass = ''
   switch (props.variant) {

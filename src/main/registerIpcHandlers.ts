@@ -11,6 +11,7 @@ import process from 'node:process'
 import { clipboard, dialog, ipcMain } from 'electron'
 import { VAD_CONFIG_IPC } from '~shared/voice'
 import { getModelDir, getModelId, modelExists } from './modelManager'
+import { polishEngine } from './polish/polishEngine'
 
 interface RegisterIpcHandlersOptions {
   asrService: AsrService
@@ -284,6 +285,161 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
     }
     return { ok: true as const }
   })
+
+  // ===== AI Provider IPC =====
+
+  // Load AI provider registry from models.dev/api.json
+  ipcMain.handle('ai:getRegistry', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { app } = await import('electron')
+    const apiJsonPath = join(app.getAppPath(), 'models.dev', 'api.json')
+    const content = readFileSync(apiJsonPath, 'utf-8')
+    const providers = JSON.parse(content)
+    return { providers }
+  })
+
+  // Get user's AI configuration
+  ipcMain.handle('ai:getConfig', async () => {
+    const settings = settingsStore.get()
+    // Mask API keys for security
+    const maskedProviders: typeof settings.ai.providers = {}
+    for (const [key, provider] of Object.entries(settings.ai.providers)) {
+      if (provider) {
+        maskedProviders[key as keyof typeof maskedProviders] = {
+          ...provider,
+          apiKey: provider.apiKey ? '********' : '',
+        }
+      }
+    }
+    return {
+      providers: maskedProviders,
+      activeProviderId: settings.ai.activeProviderId,
+      activeModelId: settings.ai.activeModelId,
+    }
+  })
+
+  // Set provider configuration
+  ipcMain.handle(
+    'ai:setProviderConfig',
+    async (_event, providerId: string, config: { apiKey?: string, customApiEndpoint?: string, selectedModelId?: string }) => {
+      const settings = settingsStore.get()
+      const existing = settings.ai.providers[providerId as keyof typeof settings.ai.providers]
+
+      // If apiKey is '********', keep the existing key
+      const apiKey = config.apiKey === '********' && existing
+        ? existing.apiKey
+        : (config.apiKey || '')
+
+      settingsStore.setAiProviderConfig(providerId as import('~shared/ai').ProviderKey, {
+        enabled: true,
+        apiKey,
+        customApiEndpoint: config.customApiEndpoint,
+        selectedModelId: config.selectedModelId,
+      })
+      return { ok: true as const }
+    },
+  )
+
+  // Remove provider configuration
+  ipcMain.handle('ai:removeProviderConfig', async (_event, providerId: string) => {
+    settingsStore.removeAiProviderConfig(providerId as import('~shared/ai').ProviderKey)
+    return { ok: true as const }
+  })
+
+  // Set active provider
+  ipcMain.handle(
+    'ai:setActiveProvider',
+    async (_event, providerId: string | null, modelId: string | null) => {
+      settingsStore.setActiveProvider(
+        providerId as import('~shared/ai').ProviderKey | null,
+        modelId,
+      )
+      return { ok: true as const }
+    },
+  )
+
+  // Check if AI provider is configured
+  ipcMain.handle('ai:checkConfigured', async () => {
+    return {
+      hasEnabledProvider: settingsStore.hasEnabledAiProvider(),
+      isActiveProviderValid: settingsStore.isActiveProviderValid(),
+    }
+  })
+
+  // ===== Polish IPC =====
+
+  // Get polish configuration
+  ipcMain.handle('polish:getConfig', async () => {
+    const settings = settingsStore.get()
+    return {
+      enabled: settings.polish.enabled,
+      selectedCommandId: settings.polish.selectedCommandId,
+      temperature: settings.polish.temperature,
+      maxTokens: settings.polish.maxTokens,
+    }
+  })
+
+  // Set polish enabled
+  ipcMain.handle('polish:setEnabled', async (_event, enabled: boolean) => {
+    settingsStore.setPolishEnabled(enabled)
+    return { ok: true as const }
+  })
+
+  // Set selected polish command
+  ipcMain.handle('polish:setCommand', async (_event, commandId: string | null) => {
+    settingsStore.setSelectedPolishCommand(commandId)
+    return { ok: true as const }
+  })
+
+  // Get all polish commands (built-in + custom)
+  ipcMain.handle('polish:getCommands', async () => {
+    return settingsStore.getAllPolishCommands()
+  })
+
+  // Add custom polish command
+  ipcMain.handle('polish:addCommand', async (_event, command: {
+    id: string
+    name: string
+    promptTemplate: string
+    icon?: string
+    order?: number
+  }) => {
+    settingsStore.addCustomPolishCommand({
+      ...command,
+      order: command.order ?? 100,
+    })
+    return { ok: true }
+  })
+
+  // Remove custom polish command
+  ipcMain.handle('polish:removeCommand', async (_event, commandId: string) => {
+    settingsStore.removeCustomPolishCommand(commandId)
+    return { ok: true }
+  })
+
+  // Update polish settings
+  ipcMain.handle(
+    'polish:updateSettings',
+    async (_event, payload: { temperature?: number, maxTokens?: number }) => {
+      settingsStore.updatePolishSettings(payload)
+      return { ok: true as const }
+    },
+  )
+
+  // ===== AI Validation IPC =====
+
+  // Validate provider configuration with test request
+  ipcMain.handle(
+    'ai:validateProvider',
+    async (_event, providerId: string, modelId: string) => {
+      const result = await polishEngine.validateProvider(
+        providerId as import('~shared/ai').ProviderKey,
+        modelId,
+      )
+      return result
+    },
+  )
 
   // E2E 测试专用：模拟系统级快捷键触发（仅在 NODE_ENV=test 下启用）
   if (process.env.NODE_ENV === 'test') {

@@ -1,0 +1,411 @@
+{
+  "openai": {
+    "id": "openai",
+    "name": "OpenAI",
+    "npm": "@ai-sdk/openai",
+    "api": null,
+    "env": [
+      "OPENAI_API_KEY"
+    ],
+    "doc": "https://platform.openai.com/docs/models",
+    "models": {
+      "gpt-4.1": {
+        "id": "gpt-4.1",
+        "name": "GPT-4.1",
+        "limit": {
+          "context": 1047576,
+          "output": 32768
+        }
+      },
+      "gpt-4.1-mini": {
+        "id": "gpt-4.1-mini",
+        "name": "GPT-4.1 mini",
+        "limit": {
+          "context": 1047576,
+          "output": 32768
+        }
+      },
+      "gpt-4.1-nano": {
+        "id": "gpt-4.1-nano",
+        "name": "GPT-4.1 nano",
+        "limit": {
+          "context": 1047576,
+          "output": 32768
+        }
+      },
+      "gpt-4o": {
+        "id": "gpt-4o",
+        "name": "GPT-4o",
+        "limit": {
+          "context": 128000,
+          "output": 16384
+        }
+      },
+      "gpt-4o-mini": {
+        "id": "gpt-4o-mini",
+        "name": "GPT-4o mini",
+        "limit": {
+          "context": 128000,
+          "output": 16384
+        }
+      },
+      "o1": {
+        "id": "o1",
+        "name": "o1",
+        "limit": {
+          "context": 200000,
+          "output": 100000
+        }
+      },
+      "o3-mini": {
+        "id": "o3-mini",
+        "name": "o3-mini",
+        "limit": {
+          "context": 200000,
+          "output": 100000
+        }
+      }
+    }
+  },
+  "google": {
+    "id": "google",
+    "name": "Google",
+    "npm": "@ai-sdk/google",
+    "api": null,
+    "env": [
+      "GOOGLE_GENERATIVE_AI_API_KEY",
+      "GEMINI_API_KEY"
+    ],
+    "doc": "https://ai.google.dev/gemini-api/docs/pricing",
+    "models": {
+      "gemini-2.5-flash-preview-05-20": {
+        "id": "gemini-2.5-flash-preview-05-20",
+        "name": "Gemini 2.5 Flash Preview 05-20",
+        "limit": {
+          "context": 1048576,
+          "output": 65536
+        }
+      },
+      "gemini-2.5-pro-preview-05-06": {
+        "id": "gemini-2.5-pro-preview-05-06",
+        "name": "Gemini 2.5 Pro Preview 05-06",
+        "limit": {
+          "context": 1048576,
+          "output": 65536
+        }
+      },
+      "gemini-2.0-flash": {
+        "id": "gemini-2.0-flash",
+        "name": "Gemini 2.0 Flash",
+        "limit": {
+          "context": 1048576,
+          "output": 8192
+        }
+      },
+      "gemini-2.0-flash-lite": {
+        "id": "gemini-2.0-flash-lite",
+        "name": "Gemini 2.0 Flash Lite",
+        "limit": {
+          "context": 1048576,
+          "output": 8192
+        }
+      }
+    }
+  },
+  "anthropic": {
+    "id": "anthropic",
+    "name": "Anthropic",
+    "npm": "@ai-sdk/anthropic",
+    "api": null,
+    "env": [
+      "ANTHROPIC_API_KEY"
+    ],
+    "doc": "https://docs.anthropic.com/en/docs/about-claude/models",
+    "models": {
+      "claude-opus-4-1": {
+        "id": "claude-opus-4-1",
+        "name": "Claude Opus 4.1 (latest)",
+        "limit": {
+          "context": 200000,
+          "output": 32000
+        }
+      },
+      "claude-opus-4-0": {
+        "id": "claude-opus-4-0",
+        "name": "Claude Opus 4 (latest)",
+        "limit": {
+          "context": 200000,
+          "output": 32000
+        }
+      },
+      "claude-sonnet-4-6": {
+        "id": "claude-sonnet-4-6",
+        "name": "Claude Sonnet 4.6",
+        "limit": {
+          "context": 200000,
+          "output": 64000
+        }
+      },
+      "claude-sonnet-4-5": {
+        "id": "claude-sonnet-4-5",
+        "name": "Claude Sonnet 4.5 (latest)",
+        "limit": {
+          "context": 200000,
+          "output": 64000
+        }
+      },
+      "claude-3-5-sonnet-20241022": {
+        "id": "claude-3-5-sonnet-20241022",
+        "name": "Claude Sonnet 3.5 v2",
+        "limit": {
+          "context": 200000,
+          "output": 8192
+        }
+      },
+      "claude-haiku-4-5": {
+        "id": "claude-haiku-4-5",
+        "name": "Claude Haiku 4.5 (latest)",
+        "limit": {
+          "context": 200000,
+          "output": 64000
+        }
+      }
+    }
+  },
+  "deepseek": {
+    "id": "deepseek",
+    "name": "DeepSeek",
+    "npm": "@ai-sdk/openai-compatible",
+    "api": "https://api.deepseek.com",
+    "env": [
+      "DEEPSEEK_API_KEY"
+    ],
+    "doc": "https://platform.deepseek.com/api-docs/pricing",
+    "models": {
+      "deepseek-chat": {
+        "id": "deepseek-chat",
+        "name": "DeepSeek Chat",
+        "limit": {
+          "context": 128000,
+          "output": 8192
+        }
+      },
+      "deepseek-reasoner": {
+        "id": "deepseek-reasoner",
+        "name": "DeepSeek Reasoner",
+        "limit": {
+          "context": 128000,
+          "output": 128000
+        }
+      }
+    }
+  },
+  "zhipuai": {
+    "id": "zhipuai",
+    "name": "Zhipu AI",
+    "npm": "@ai-sdk/openai-compatible",
+    "api": "https://open.bigmodel.cn/api/paas/v4",
+    "env": [
+      "ZHIPU_API_KEY"
+    ],
+    "doc": "https://docs.z.ai/guides/overview/pricing",
+    "models": {
+      "glm-5": {
+        "id": "glm-5",
+        "name": "GLM-5",
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        }
+      },
+      "glm-4.6": {
+        "id": "glm-4.6",
+        "name": "GLM-4.6",
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        }
+      },
+      "glm-4.6v": {
+        "id": "glm-4.6v",
+        "name": "GLM-4.6V",
+        "limit": {
+          "context": 128000,
+          "output": 32768
+        }
+      },
+      "glm-4.5": {
+        "id": "glm-4.5",
+        "name": "GLM-4.5",
+        "limit": {
+          "context": 131072,
+          "output": 98304
+        }
+      },
+      "glm-4.5-air": {
+        "id": "glm-4.5-air",
+        "name": "GLM-4.5-Air",
+        "limit": {
+          "context": 131072,
+          "output": 98304
+        }
+      },
+      "glm-4.5v": {
+        "id": "glm-4.5v",
+        "name": "GLM-4.5V",
+        "limit": {
+          "context": 64000,
+          "output": 16384
+        }
+      },
+      "glm-4.5-flash": {
+        "id": "glm-4.5-flash",
+        "name": "GLM-4.5-Flash",
+        "limit": {
+          "context": 131072,
+          "output": 98304
+        }
+      }
+    }
+  },
+  "zai-coding-plan": {
+    "id": "zai-coding-plan",
+    "name": "Z.AI Coding Plan",
+    "npm": "@ai-sdk/openai-compatible",
+    "api": "https://api.z.ai/api/coding/paas/v4",
+    "env": [
+      "ZHIPU_API_KEY"
+    ],
+    "doc": "https://docs.z.ai/devpack/overview",
+    "models": {
+      "glm-5": {
+        "id": "glm-5",
+        "name": "GLM-5",
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        }
+      },
+      "glm-4.7": {
+        "id": "glm-4.7",
+        "name": "GLM-4.7",
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        }
+      },
+      "glm-4.7-flash": {
+        "id": "glm-4.7-flash",
+        "name": "GLM-4.7-Flash",
+        "limit": {
+          "context": 200000,
+          "output": 131072
+        }
+      },
+      "glm-4.5": {
+        "id": "glm-4.5",
+        "name": "GLM-4.5",
+        "limit": {
+          "context": 131072,
+          "output": 98304
+        }
+      },
+      "glm-4.5-flash": {
+        "id": "glm-4.5-flash",
+        "name": "GLM-4.5-Flash",
+        "limit": {
+          "context": 131072,
+          "output": 98304
+        }
+      }
+    }
+  },
+  "minimax": {
+    "id": "minimax",
+    "name": "MiniMax (minimax.io)",
+    "npm": "@ai-sdk/anthropic",
+    "api": "https://api.minimax.io/anthropic/v1",
+    "env": [
+      "MINIMAX_API_KEY"
+    ],
+    "doc": "https://platform.minimax.io/docs/guides/quickstart",
+    "models": {
+      "MiniMax-M2.5": {
+        "id": "MiniMax-M2.5",
+        "name": "MiniMax-M2.5",
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        }
+      },
+      "MiniMax-M2.1": {
+        "id": "MiniMax-M2.1",
+        "name": "MiniMax-M2.1",
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        }
+      },
+      "MiniMax-M2": {
+        "id": "MiniMax-M2",
+        "name": "MiniMax-M2",
+        "limit": {
+          "context": 196608,
+          "output": 128000
+        }
+      },
+      "MiniMax-M2.5-highspeed": {
+        "id": "MiniMax-M2.5-highspeed",
+        "name": "MiniMax-M2.5-highspeed",
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        }
+      }
+    }
+  },
+  "minimax-coding-plan": {
+    "id": "minimax-coding-plan",
+    "name": "MiniMax Coding Plan (minimax.io)",
+    "npm": "@ai-sdk/anthropic",
+    "api": "https://api.minimax.io/anthropic/v1",
+    "env": [
+      "MINIMAX_API_KEY"
+    ],
+    "doc": "https://platform.minimax.io/docs/coding-plan/intro",
+    "models": {
+      "MiniMax-M2.5": {
+        "id": "MiniMax-M2.5",
+        "name": "MiniMax-M2.5",
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        }
+      },
+      "MiniMax-M2.1": {
+        "id": "MiniMax-M2.1",
+        "name": "MiniMax-M2.1",
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        }
+      },
+      "MiniMax-M2": {
+        "id": "MiniMax-M2",
+        "name": "MiniMax-M2",
+        "limit": {
+          "context": 196608,
+          "output": 128000
+        }
+      },
+      "MiniMax-M2.5-highspeed": {
+        "id": "MiniMax-M2.5-highspeed",
+        "name": "MiniMax-M2.5-highspeed",
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        }
+      }
+    }
+  }
+}

@@ -5,6 +5,7 @@ export type VoiceSessionState
     | 'ARMING'
     | 'STREAMING'
     | 'FINALIZING'
+    | 'POLISHING'
     | 'INJECTING'
     | 'DONE'
     | 'FAILED'
