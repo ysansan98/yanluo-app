@@ -241,6 +241,7 @@ function closeDialog() {
 <template>
   <div
     class="min-h-screen px-6 pt-12 pb-5 text-yl-ink-900 font-yl-sans"
+    style="--yl-sticky-offset: 80px;"
   >
     <div
       class="fixed inset-x-0 top-0 z-60 h-11 bg-transparent [-webkit-app-region:drag]"
