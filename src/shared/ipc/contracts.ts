@@ -1,5 +1,9 @@
 import { z } from 'zod'
 
+// Electron renderer/preload contexts can disallow string code generation.
+// Force zod v4 to skip JIT compilation (`new Function`) for schema parsing.
+z.config({ jitless: true })
+
 export const providerKeySchema = z.enum([
   'openai',
   'google',
