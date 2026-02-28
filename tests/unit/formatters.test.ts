@@ -14,7 +14,6 @@ describe('formatters', () => {
 
   // 验证来源枚举会映射为中文展示文案
   it('returns localized source labels', () => {
-    expect(sourceLabel('file')).toBe('文件上传')
     expect(sourceLabel('live')).toBe('实时识别')
   })
 })

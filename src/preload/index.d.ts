@@ -1,4 +1,27 @@
 import type { ElectronAPI } from '@electron-toolkit/preload'
+import type {
+  AiCheckConfiguredResponse,
+  AiGetConfigResponse,
+  AiRegistryResponse,
+  AiSetProviderConfigRequest,
+  AiValidateProviderResponse,
+  AsrDownloadLogEvent,
+  AsrDownloadModelResponse,
+  AsrDownloadProgress,
+  AsrHealthResponse,
+  AsrModelInfoResponse,
+  HistoryCreateRequest,
+  HistoryEntry,
+  HistoryListRequest,
+  HistoryListResponse,
+  HistoryReadAudioRequest,
+  HistoryReadAudioResponse,
+  PolishAddCommandRequest,
+  PolishCommandsResponse,
+  PolishConfigResponse,
+  PolishUpdateSettingsRequest,
+  ShortcutGetResponse,
+} from '~shared/ipc'
 import type { VoiceBridgeApi } from './voiceBridge'
 
 export interface DownloadProgress {
@@ -16,89 +39,30 @@ type PermissionKind = 'MICROPHONE' | 'ACCESSIBILITY'
 type PermissionStatus = 'GRANTED' | 'DENIED' | 'NOT_DETERMINED' | 'RESTRICTED'
 
 interface AsrApi {
-  health: () => Promise<{
-    status: string
-    model_loaded: boolean
-    model_error?: string | null
-  }>
-  modelInfo: () => Promise<{
-    modelId: string
-    modelDir: string
-    exists: boolean
-  }>
-  downloadModel: () => Promise<{ status: 'ok' | 'exists' | 'running' }>
+  health: () => Promise<AsrHealthResponse>
+  modelInfo: () => Promise<AsrModelInfoResponse>
+  downloadModel: () => Promise<AsrDownloadModelResponse>
   onDownloadLog: (
-    handler: (payload: { type: string, message: string }) => void,
+    handler: (payload: AsrDownloadLogEvent) => void,
   ) => () => void
   onDownloadProgress: (
-    handler: (progress: DownloadProgress) => void,
+    handler: (progress: AsrDownloadProgress) => void,
   ) => () => void
 }
 
 interface HistoryApi {
-  create: (payload: {
-    source: 'live'
-    entryType: 'asr_only' | 'polish'
-    commandName?: string | null
-    text: string
-    language?: string
-    elapsedMs?: number
-    audioPath?: string | null
-    triggeredAt?: number
-  }) => Promise<{
-    id: string
-    source: 'live'
-    entryType: 'asr_only' | 'polish'
-    commandName: string | null
-    text: string
-    textLength: number
-    language: string
-    elapsedMs: number
-    audioPath: string | null
-    triggeredAt: number
-    createdAt: number
-  }>
-  list: (payload?: { limit?: number }) => Promise<
-    Array<{
-      id: string
-      source: 'live'
-      entryType: 'asr_only' | 'polish'
-      commandName: string | null
-      text: string
-      textLength: number
-      language: string
-      elapsedMs: number
-      audioPath: string | null
-      triggeredAt: number
-      createdAt: number
-    }>
-  >
+  create: (payload: HistoryCreateRequest) => Promise<HistoryEntry>
+  list: (payload?: HistoryListRequest) => Promise<HistoryListResponse>
   clear: () => Promise<{ ok: true }>
-  readAudio: (payload: {
-    path: string
-  }) => Promise<
-    { ok: true, mime: string, base64: string } | { ok: false, message: string }
-  >
-  onCreated: (listener: (entry: {
-    id: string
-    source: 'live'
-    entryType: 'asr_only' | 'polish'
-    commandName: string | null
-    text: string
-    textLength: number
-    language: string
-    elapsedMs: number
-    audioPath: string | null
-    triggeredAt: number
-    createdAt: number
-  }) => void) => () => void
+  readAudio: (payload: HistoryReadAudioRequest) => Promise<HistoryReadAudioResponse>
+  onCreated: (listener: (entry: HistoryEntry) => void) => () => void
 }
 
 interface OnboardingApi {
   getStatus: () => Promise<{ completed: boolean, skippedSteps: string[] }>
-  complete: () => Promise<{ ok: boolean }>
-  skipStep: (stepId: string) => Promise<{ ok: boolean }>
-  reset: () => Promise<{ ok: boolean }>
+  complete: () => Promise<{ ok: true }>
+  skipStep: (stepId: string) => Promise<{ ok: true }>
+  reset: () => Promise<{ ok: true }>
 }
 
 interface PermissionApi {
@@ -107,11 +71,11 @@ interface PermissionApi {
 }
 
 interface ShortcutApi {
-  get: () => Promise<string | null>
-  set: (shortcut: string | null) => Promise<{ ok: boolean }>
-  disableGlobal: () => Promise<{ ok: boolean }>
-  enableGlobal: () => Promise<{ ok: boolean }>
-  initHotkey: () => Promise<{ ok: boolean }>
+  get: () => Promise<ShortcutGetResponse>
+  set: (shortcut: string | null) => Promise<{ ok: true }>
+  disableGlobal: () => Promise<{ ok: true }>
+  enableGlobal: () => Promise<{ ok: true }>
+  initHotkey: () => Promise<{ ok: true }>
 }
 
 interface AppEventApi {
@@ -121,7 +85,7 @@ interface AppEventApi {
 }
 
 interface ClipboardApi {
-  writeText: (text: string) => Promise<{ ok: boolean, error?: string }>
+  writeText: (text: string) => Promise<{ ok: true } | { ok: false, error: string }>
 }
 
 // AI Provider Types
@@ -151,28 +115,13 @@ interface AiRegistry {
 }
 
 interface AiApi {
-  getRegistry: () => Promise<AiRegistry>
-  getConfig: () => Promise<{
-    providers: Record<string, AiProviderUserConfig>
-    activeProviderId: string | null
-    activeModelId: string | null
-  }>
-  setProviderConfig: (providerId: string, config: {
-    apiKey?: string
-    customApiEndpoint?: string
-    selectedModelId?: string
-  }) => Promise<{ ok: boolean }>
-  removeProviderConfig: (providerId: string) => Promise<{ ok: boolean }>
-  setActiveProvider: (providerId: string | null, modelId: string | null) => Promise<{ ok: boolean }>
-  checkConfigured: () => Promise<{
-    hasEnabledProvider: boolean
-    isActiveProviderValid: boolean
-  }>
-  validateProvider: (providerId: string, modelId: string) => Promise<{
-    ok: boolean
-    message?: string
-    error?: string
-  }>
+  getRegistry: () => Promise<AiRegistryResponse>
+  getConfig: () => Promise<AiGetConfigResponse>
+  setProviderConfig: (providerId: string, config: AiSetProviderConfigRequest) => Promise<{ ok: true }>
+  removeProviderConfig: (providerId: string) => Promise<{ ok: true }>
+  setActiveProvider: (providerId: string | null, modelId: string | null) => Promise<{ ok: true }>
+  checkConfigured: () => Promise<AiCheckConfiguredResponse>
+  validateProvider: (providerId: string, modelId: string) => Promise<AiValidateProviderResponse>
 }
 
 // Polish Types
@@ -186,23 +135,13 @@ interface PolishCommand {
 }
 
 interface PolishApi {
-  getConfig: () => Promise<{
-    enabled: boolean
-    selectedCommandId: string | null
-    temperature: number
-    maxTokens: number
-  }>
-  setEnabled: (enabled: boolean) => Promise<{ ok: boolean }>
-  setCommand: (commandId: string | null) => Promise<{ ok: boolean }>
-  getCommands: () => Promise<PolishCommand[]>
-  updateSettings: (payload: { temperature?: number, maxTokens?: number }) => Promise<{ ok: boolean }>
-  addCommand?: (command: {
-    id: string
-    name: string
-    promptTemplate: string
-    icon?: string
-  }) => Promise<{ ok: boolean }>
-  removeCommand?: (commandId: string) => Promise<{ ok: boolean }>
+  getConfig: () => Promise<PolishConfigResponse>
+  setEnabled: (enabled: boolean) => Promise<{ ok: true }>
+  setCommand: (commandId: string | null) => Promise<{ ok: true }>
+  getCommands: () => Promise<PolishCommandsResponse>
+  updateSettings: (payload: PolishUpdateSettingsRequest) => Promise<{ ok: true }>
+  addCommand?: (command: PolishAddCommandRequest) => Promise<{ ok: true }>
+  removeCommand?: (commandId: string) => Promise<{ ok: true }>
 }
 
 interface AppApi {

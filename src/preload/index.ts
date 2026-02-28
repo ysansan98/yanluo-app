@@ -1,55 +1,116 @@
-import type { HistoryEntry } from '../main/historyStore'
-import type { DownloadProgress } from '../main/modelManager'
+import type {
+  AiSetProviderConfigRequest,
+  AsrDownloadLogEvent,
+  AsrDownloadModelResponse,
+  AsrDownloadProgress,
+  AsrHealthResponse,
+  AsrModelInfoResponse,
+  HistoryCreateRequest,
+  HistoryEntry,
+  HistoryListRequest,
+  HistoryListResponse,
+  HistoryReadAudioRequest,
+  PolishAddCommandRequest,
+  PolishUpdateSettingsRequest,
+} from '~shared/ipc'
 import process from 'node:process'
 import { electronAPI } from '@electron-toolkit/preload'
 import { contextBridge, ipcRenderer } from 'electron'
+import {
+  aiCheckConfiguredResponseSchema,
+  aiGetConfigResponseSchema,
+  aiRegistryResponseSchema,
+  aiSetActiveProviderRequestSchema,
+  aiSetProviderConfigRequestSchema,
+  aiValidateProviderResponseSchema,
+  asrDownloadLogEventSchema,
+  asrDownloadModelResponseSchema,
+  asrDownloadProgressSchema,
+  asrHealthResponseSchema,
+  asrModelInfoResponseSchema,
+  clipboardWriteTextRequestSchema,
+  clipboardWriteTextResponseSchema,
+  historyCreateRequestSchema,
+  historyEntrySchema,
+  historyListRequestSchema,
+  historyListResponseSchema,
+  historyReadAudioRequestSchema,
+  historyReadAudioResponseSchema,
+  okResponseSchema,
+  onboardingSkipStepRequestSchema,
+  onboardingStatusResponseSchema,
+  permissionKindSchema,
+  permissionStatusSchema,
+  polishAddCommandRequestSchema,
+  polishCommandsResponseSchema,
+  polishConfigResponseSchema,
+  polishRemoveCommandRequestSchema,
+  polishSetCommandRequestSchema,
+  polishSetEnabledRequestSchema,
+  polishUpdateSettingsRequestSchema,
+  providerKeySchema,
+  shortcutGetResponseSchema,
+  shortcutSetRequestSchema,
+  shortcutSetResponseSchema,
+} from '~shared/ipc'
 import { createVoiceBridge } from './voiceBridge'
 
 // Custom APIs for renderer
 const api = {
   asr: {
-    health: () => ipcRenderer.invoke('asr:health'),
-    modelInfo: () => ipcRenderer.invoke('asr:modelInfo'),
-    downloadModel: () => ipcRenderer.invoke('asr:downloadModel'),
+    health: async (): Promise<AsrHealthResponse> =>
+      asrHealthResponseSchema.parse(await ipcRenderer.invoke('asr:health')),
+    modelInfo: async (): Promise<AsrModelInfoResponse> =>
+      asrModelInfoResponseSchema.parse(await ipcRenderer.invoke('asr:modelInfo')),
+    downloadModel: async (): Promise<AsrDownloadModelResponse> =>
+      asrDownloadModelResponseSchema.parse(
+        await ipcRenderer.invoke('asr:downloadModel'),
+      ),
     // 订阅下载进度（返回取消订阅函数）
-    onDownloadProgress: (handler: (progress: DownloadProgress) => void) => {
+    onDownloadProgress: (handler: (progress: AsrDownloadProgress) => void) => {
       const listener = (
         _event: Electron.IpcRendererEvent,
-        progress: DownloadProgress,
-      ) => handler(progress)
+        progress: AsrDownloadProgress,
+      ) => handler(asrDownloadProgressSchema.parse(progress))
       ipcRenderer.on('asr:downloadProgress', listener)
       return () => ipcRenderer.removeListener('asr:downloadProgress', listener)
     },
     // 订阅下载日志
     onDownloadLog: (
-      handler: (payload: { type: string, message: string }) => void,
+      handler: (payload: AsrDownloadLogEvent) => void,
     ) => {
       const listener = (
         _event: Electron.IpcRendererEvent,
         payload: { type: string, message: string },
-      ) => handler(payload)
+      ) => handler(asrDownloadLogEventSchema.parse(payload))
       ipcRenderer.on('asr:downloadLog', listener)
       return () => ipcRenderer.removeListener('asr:downloadLog', listener)
     },
   },
   history: {
-    create: (payload: {
-      source: 'file' | 'live'
-      entryType: 'asr_only' | 'polish'
-      commandName?: string | null
-      text: string
-      language?: string
-      elapsedMs?: number
-      audioPath?: string | null
-      triggeredAt?: number
-    }) => ipcRenderer.invoke('history:create', payload),
-    list: (payload?: { limit?: number }) =>
-      ipcRenderer.invoke('history:list', payload),
-    clear: () => ipcRenderer.invoke('history:clear'),
-    readAudio: (payload: { path: string }) =>
-      ipcRenderer.invoke('history:readAudio', payload),
+    create: async (payload: HistoryCreateRequest): Promise<HistoryEntry> =>
+      historyEntrySchema.parse(
+        await ipcRenderer.invoke(
+          'history:create',
+          historyCreateRequestSchema.parse(payload),
+        ),
+      ),
+    list: async (payload?: HistoryListRequest): Promise<HistoryListResponse> =>
+      historyListResponseSchema.parse(
+        await ipcRenderer.invoke('history:list', historyListRequestSchema.parse(payload)),
+      ),
+    clear: async () =>
+      okResponseSchema.parse(await ipcRenderer.invoke('history:clear')),
+    readAudio: async (payload: HistoryReadAudioRequest) =>
+      historyReadAudioResponseSchema.parse(
+        await ipcRenderer.invoke(
+          'history:readAudio',
+          historyReadAudioRequestSchema.parse(payload),
+        ),
+      ),
     onCreated: (listener: (entry: HistoryEntry) => void) => {
-      const wrappedListener = (_event: Electron.IpcRendererEvent, entry: HistoryEntry) => listener(entry)
+      const wrappedListener = (_event: Electron.IpcRendererEvent, entry: HistoryEntry) =>
+        listener(historyEntrySchema.parse(entry))
       ipcRenderer.on('history:created', wrappedListener)
       return () => ipcRenderer.removeListener('history:created', wrappedListener)
     },
@@ -57,70 +118,153 @@ const api = {
   voice: createVoiceBridge(),
   // 引导相关 API
   onboarding: {
-    getStatus: () => ipcRenderer.invoke('onboarding:getStatus'),
-    complete: () => ipcRenderer.invoke('onboarding:complete'),
+    getStatus: async () =>
+      onboardingStatusResponseSchema.parse(
+        await ipcRenderer.invoke('onboarding:getStatus'),
+      ),
+    complete: async () =>
+      okResponseSchema.parse(await ipcRenderer.invoke('onboarding:complete')),
     skipStep: (stepId: string) =>
-      ipcRenderer.invoke('onboarding:skipStep', stepId),
-    reset: () => ipcRenderer.invoke('onboarding:reset'),
+      ipcRenderer.invoke(
+        'onboarding:skipStep',
+        onboardingSkipStepRequestSchema.parse(stepId),
+      ),
+    reset: async () => okResponseSchema.parse(await ipcRenderer.invoke('onboarding:reset')),
   },
   // 权限相关 API
   permission: {
-    check: (kind: 'MICROPHONE' | 'ACCESSIBILITY') =>
-      ipcRenderer.invoke('permission:check', kind),
-    request: (kind: 'MICROPHONE' | 'ACCESSIBILITY') =>
-      ipcRenderer.invoke('permission:request', kind),
+    check: async (kind: 'MICROPHONE' | 'ACCESSIBILITY') =>
+      permissionStatusSchema.parse(
+        await ipcRenderer.invoke('permission:check', permissionKindSchema.parse(kind)),
+      ),
+    request: async (kind: 'MICROPHONE' | 'ACCESSIBILITY') =>
+      permissionStatusSchema.parse(
+        await ipcRenderer.invoke(
+          'permission:request',
+          permissionKindSchema.parse(kind),
+        ),
+      ),
   },
   // 快捷键相关 API
   shortcut: {
-    get: () => ipcRenderer.invoke('shortcut:get'),
-    set: (shortcut: string | null) =>
-      ipcRenderer.invoke('shortcut:set', shortcut),
-    disableGlobal: () => {
+    get: async () =>
+      shortcutGetResponseSchema.parse(await ipcRenderer.invoke('shortcut:get')),
+    set: async (shortcut: string | null) =>
+      shortcutSetResponseSchema.parse(
+        await ipcRenderer.invoke(
+          'shortcut:set',
+          shortcutSetRequestSchema.parse(shortcut),
+        ),
+      ),
+    disableGlobal: async () => {
       console.log('[preload] Requesting to disable hotkeys globally')
-      ipcRenderer.invoke('shortcut:disableGlobal')
+      return okResponseSchema.parse(
+        await ipcRenderer.invoke('shortcut:disableGlobal'),
+      )
     },
-    enableGlobal: () => ipcRenderer.invoke('shortcut:enableGlobal'),
-    initHotkey: () => ipcRenderer.invoke('shortcut:initHotkey'),
+    enableGlobal: async () =>
+      okResponseSchema.parse(await ipcRenderer.invoke('shortcut:enableGlobal')),
+    initHotkey: async () =>
+      okResponseSchema.parse(await ipcRenderer.invoke('shortcut:initHotkey')),
   },
   // 剪贴板相关 API
   clipboard: {
-    writeText: (text: string) => ipcRenderer.invoke('clipboard:writeText', text),
+    writeText: async (text: string) =>
+      clipboardWriteTextResponseSchema.parse(
+        await ipcRenderer.invoke(
+          'clipboard:writeText',
+          clipboardWriteTextRequestSchema.parse(text),
+        ),
+      ),
   },
   // AI Provider API
   ai: {
-    getRegistry: () => ipcRenderer.invoke('ai:getRegistry'),
-    getConfig: () => ipcRenderer.invoke('ai:getConfig'),
-    setProviderConfig: (providerId: string, config: {
-      apiKey?: string
-      customApiEndpoint?: string
-      selectedModelId?: string
-    }) => ipcRenderer.invoke('ai:setProviderConfig', providerId, config),
-    removeProviderConfig: (providerId: string) =>
-      ipcRenderer.invoke('ai:removeProviderConfig', providerId),
-    setActiveProvider: (providerId: string | null, modelId: string | null) =>
-      ipcRenderer.invoke('ai:setActiveProvider', providerId, modelId),
-    checkConfigured: () => ipcRenderer.invoke('ai:checkConfigured'),
-    validateProvider: (providerId: string, modelId: string) =>
-      ipcRenderer.invoke('ai:validateProvider', providerId, modelId),
+    getRegistry: async () =>
+      aiRegistryResponseSchema.parse(await ipcRenderer.invoke('ai:getRegistry')),
+    getConfig: async () =>
+      aiGetConfigResponseSchema.parse(await ipcRenderer.invoke('ai:getConfig')),
+    setProviderConfig: async (providerId: string, config: AiSetProviderConfigRequest) =>
+      okResponseSchema.parse(
+        await ipcRenderer.invoke(
+          'ai:setProviderConfig',
+          providerKeySchema.parse(providerId),
+          aiSetProviderConfigRequestSchema.parse(config),
+        ),
+      ),
+    removeProviderConfig: async (providerId: string) =>
+      okResponseSchema.parse(
+        await ipcRenderer.invoke(
+          'ai:removeProviderConfig',
+          providerKeySchema.parse(providerId),
+        ),
+      ),
+    setActiveProvider: async (providerId: string | null, modelId: string | null) => {
+      const validated = aiSetActiveProviderRequestSchema.parse({
+        providerId,
+        modelId,
+      })
+      return okResponseSchema.parse(
+        await ipcRenderer.invoke(
+          'ai:setActiveProvider',
+          validated.providerId,
+          validated.modelId,
+        ),
+      )
+    },
+    checkConfigured: async () =>
+      aiCheckConfiguredResponseSchema.parse(
+        await ipcRenderer.invoke('ai:checkConfigured'),
+      ),
+    validateProvider: async (providerId: string, modelId: string) =>
+      aiValidateProviderResponseSchema.parse(
+        await ipcRenderer.invoke(
+          'ai:validateProvider',
+          providerKeySchema.parse(providerId),
+          modelId,
+        ),
+      ),
   },
   // Polish API
   polish: {
-    getConfig: () => ipcRenderer.invoke('polish:getConfig'),
-    setEnabled: (enabled: boolean) =>
-      ipcRenderer.invoke('polish:setEnabled', enabled),
-    setCommand: (commandId: string | null) =>
-      ipcRenderer.invoke('polish:setCommand', commandId),
-    getCommands: () => ipcRenderer.invoke('polish:getCommands'),
-    updateSettings: (payload: { temperature?: number, maxTokens?: number }) =>
-      ipcRenderer.invoke('polish:updateSettings', payload),
-    addCommand: (command: {
-      id: string
-      name: string
-      promptTemplate: string
-      icon?: string
-    }) => ipcRenderer.invoke('polish:addCommand', command),
-    removeCommand: (commandId: string) =>
-      ipcRenderer.invoke('polish:removeCommand', commandId),
+    getConfig: async () =>
+      polishConfigResponseSchema.parse(await ipcRenderer.invoke('polish:getConfig')),
+    setEnabled: async (enabled: boolean) =>
+      okResponseSchema.parse(
+        await ipcRenderer.invoke(
+          'polish:setEnabled',
+          polishSetEnabledRequestSchema.parse(enabled),
+        ),
+      ),
+    setCommand: async (commandId: string | null) =>
+      okResponseSchema.parse(
+        await ipcRenderer.invoke(
+          'polish:setCommand',
+          polishSetCommandRequestSchema.parse(commandId),
+        ),
+      ),
+    getCommands: async () =>
+      polishCommandsResponseSchema.parse(await ipcRenderer.invoke('polish:getCommands')),
+    updateSettings: async (payload: PolishUpdateSettingsRequest) =>
+      okResponseSchema.parse(
+        await ipcRenderer.invoke(
+          'polish:updateSettings',
+          polishUpdateSettingsRequestSchema.parse(payload),
+        ),
+      ),
+    addCommand: async (command: PolishAddCommandRequest) =>
+      okResponseSchema.parse(
+        await ipcRenderer.invoke(
+          'polish:addCommand',
+          polishAddCommandRequestSchema.parse(command),
+        ),
+      ),
+    removeCommand: async (commandId: string) =>
+      okResponseSchema.parse(
+        await ipcRenderer.invoke(
+          'polish:removeCommand',
+          polishRemoveCommandRequestSchema.parse(commandId),
+        ),
+      ),
   },
   // 应用级事件
   app: {
@@ -143,7 +287,10 @@ const api = {
   ...(process.env.NODE_ENV === 'test'
     ? {
         test: {
-          triggerShortcutHub: () => ipcRenderer.invoke('test:shortcut:triggerHub'),
+          triggerShortcutHub: async () =>
+            okResponseSchema.parse(
+              await ipcRenderer.invoke('test:shortcut:triggerHub'),
+            ),
         },
       }
     : {}),

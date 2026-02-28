@@ -6,6 +6,14 @@ import type {
   VoiceUiUpdatePayload,
 } from '~shared/voice'
 import { ipcRenderer } from 'electron'
+import {
+  vadConfigSchema,
+  vadSetConfigRequestSchema,
+  vadSetConfigResponseSchema,
+  voiceGetConfigResponseSchema,
+  voiceSetConfigRequestSchema,
+  voiceSetConfigResponseSchema,
+} from '~shared/ipc'
 import { AUDIO_IPC, VAD_CONFIG_IPC, VOICE_IPC } from '~shared/voice'
 
 export interface VoiceBridgeApi {
@@ -84,10 +92,26 @@ export function createVoiceBridge(): VoiceBridgeApi {
     requestSilentCancel: () => ipcRenderer.send(AUDIO_IPC.VAD_SILENT_CANCEL),
     startRecording: () => ipcRenderer.invoke('voice:recording:start'),
     stopRecording: () => ipcRenderer.invoke('voice:recording:stop'),
-    getConfig: () => ipcRenderer.invoke('voice:getConfig'),
-    setConfig: payload => ipcRenderer.invoke('voice:setConfig', payload),
-    getVadConfig: () => ipcRenderer.invoke(VAD_CONFIG_IPC.GET),
-    setVadConfig: payload => ipcRenderer.invoke(VAD_CONFIG_IPC.SET, payload),
+    getConfig: async () =>
+      voiceGetConfigResponseSchema.parse(
+        await ipcRenderer.invoke('voice:getConfig'),
+      ),
+    setConfig: async payload =>
+      voiceSetConfigResponseSchema.parse(
+        await ipcRenderer.invoke(
+          'voice:setConfig',
+          voiceSetConfigRequestSchema.parse(payload),
+        ),
+      ),
+    getVadConfig: async () =>
+      vadConfigSchema.parse(await ipcRenderer.invoke(VAD_CONFIG_IPC.GET)),
+    setVadConfig: async payload =>
+      vadSetConfigResponseSchema.parse(
+        await ipcRenderer.invoke(
+          VAD_CONFIG_IPC.SET,
+          vadSetConfigRequestSchema.parse(payload),
+        ),
+      ),
     onVadConfigUpdated: cb => bindEvent(VAD_CONFIG_IPC.UPDATED, cb),
   }
 }
