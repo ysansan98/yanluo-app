@@ -135,7 +135,7 @@ describe('history ipc handlers integration', () => {
     mocked.broadcastSend.mockReset()
     mocked.getAllWindowsMock.mockReturnValue([
       { webContents: { send: mocked.broadcastSend } },
-    ])
+    ] as never)
   })
 
   it('create/list/clear behaves as observable contract', async () => {
@@ -162,7 +162,7 @@ describe('history ipc handlers integration', () => {
     })
     expect(mocked.broadcastSend).toHaveBeenCalledWith('history:created', created)
 
-    const listed = await listHandler(undefined, { limit: 10 })
+    const listed = await listHandler(undefined, { limit: 10 }) as HistoryEntry[]
     expect(listed).toHaveLength(1)
     expect(listed[0]).toMatchObject({ text: 'hello world' })
 

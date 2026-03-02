@@ -155,7 +155,12 @@ describe('ipc register handlers', () => {
   it('asr:downloadModel returns running when downloader is in progress', async () => {
     const options = createBaseOptions()
     options.getMainWindow = () => ({ webContents: { send: vi.fn() } }) as never
-    options.modelDownloader.running = true
+    options.modelDownloader = {
+      get running() {
+        return true
+      },
+      start: vi.fn(async () => {}),
+    } as never
     registerAsrIpcHandlers(options)
 
     const handler = mocked.handlers.get('asr:downloadModel')!
