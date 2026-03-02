@@ -1,16 +1,20 @@
 import type { RegisterIpcHandlersOptions } from '../../src/main/ipc/types'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { registerAiPolishIpcHandlers } from '../../src/main/ipc/registerAiPolishIpcHandlers'
 import { registerAsrIpcHandlers } from '../../src/main/ipc/registerAsrIpcHandlers'
 import { registerHistoryIpcHandlers } from '../../src/main/ipc/registerHistoryIpcHandlers'
 import { registerSystemIpcHandlers } from '../../src/main/ipc/registerSystemIpcHandlers'
 
+const tmpAppDir = mkdtempSync(join(tmpdir(), 'yanluo-ipc-test-'))
 const mocked = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   clipboardWriteTextMock: vi.fn(),
   getAllWindowsMock: vi.fn(() => []),
-  getAppPathMock: vi.fn(() => process.cwd()),
+  getAppPathMock: vi.fn(() => tmpAppDir),
   modelExistsMock: vi.fn(() => false),
   validateProviderMock: vi.fn(async () => ({ ok: true, message: 'ok' })),
 }))
@@ -53,7 +57,7 @@ function createBaseOptions(): RegisterIpcHandlersOptions {
       clear: vi.fn(),
       create: vi.fn(payload => ({
         id: 'id-1',
-        source: 'live',
+        source: payload.source,
         entryType: payload.entryType,
         commandName: payload.commandName ?? null,
         text: payload.text,
@@ -137,6 +141,7 @@ describe('ipc register handlers', () => {
     mocked.handlers.clear()
     vi.clearAllMocks()
     mocked.modelExistsMock.mockReturnValue(false)
+    mocked.getAllWindowsMock.mockReturnValue([])
   })
 
   it('asr:downloadModel throws when main window not ready', async () => {
@@ -147,17 +152,34 @@ describe('ipc register handlers', () => {
     await expect(handler()).rejects.toThrow('Window not ready')
   })
 
-  it('asr:downloadModel returns exists without starting download', async () => {
-    mocked.modelExistsMock.mockReturnValue(true)
+  it('asr:downloadModel returns running when downloader is in progress', async () => {
     const options = createBaseOptions()
     options.getMainWindow = () => ({ webContents: { send: vi.fn() } }) as never
+    options.modelDownloader.running = true
     registerAsrIpcHandlers(options)
 
     const handler = mocked.handlers.get('asr:downloadModel')!
     const result = await handler()
 
-    expect(result).toEqual({ status: 'exists' })
+    expect(result).toEqual({ status: 'running' })
     expect(options.modelDownloader.start).not.toHaveBeenCalled()
+  })
+
+  it('history:create surfaces store errors to caller', async () => {
+    const options = createBaseOptions()
+    const storeError = new Error('db write failed')
+    options.historyStore.create = vi.fn(() => {
+      throw storeError
+    }) as never
+    registerHistoryIpcHandlers(options)
+
+    const handler = mocked.handlers.get('history:create')!
+
+    await expect(handler(undefined, {
+      source: 'live',
+      entryType: 'asr_only',
+      text: 'hello',
+    })).rejects.toThrow('db write failed')
   })
 
   it('history:readAudio returns not found for missing file', async () => {
@@ -170,7 +192,18 @@ describe('ipc register handlers', () => {
     expect(result).toEqual({ ok: false, message: 'file not found' })
   })
 
-  it('shortcut:set validates payload and updates orchestrator shortcut', async () => {
+  it('permission:request returns denied status from checker', async () => {
+    const options = createBaseOptions()
+    options.permissionChecker.ensureOrPrompt = vi.fn(async () => 'DENIED') as never
+    registerSystemIpcHandlers(options)
+
+    const handler = mocked.handlers.get('permission:request')!
+    const result = await handler(undefined, 'MICROPHONE')
+
+    expect(result).toBe('DENIED')
+  })
+
+  it('shortcut:set validates payload and updates shortcut state', async () => {
     const options = createBaseOptions()
     registerSystemIpcHandlers(options)
 
@@ -193,6 +226,18 @@ describe('ipc register handlers', () => {
     const result = await handler(undefined, 'hello')
 
     expect(result).toEqual({ ok: false, error: 'deny' })
+  })
+
+  it('ai:getRegistry fails when registry json is invalid', async () => {
+    const apiDir = join(tmpAppDir, 'models.dev')
+    mkdirSync(apiDir, { recursive: true })
+    writeFileSync(join(apiDir, 'api.json'), '{bad json', 'utf-8')
+
+    const options = createBaseOptions()
+    registerAiPolishIpcHandlers(options)
+
+    const handler = mocked.handlers.get('ai:getRegistry')!
+    await expect(handler()).rejects.toThrow()
   })
 
   it('ai:setProviderConfig keeps existing key when payload is masked', async () => {
@@ -221,4 +266,8 @@ describe('ipc register handlers', () => {
     )
     expect(mocked.validateProviderMock).not.toHaveBeenCalled()
   })
+})
+
+afterAll(() => {
+  rmSync(tmpAppDir, { recursive: true, force: true })
 })

@@ -193,6 +193,24 @@ describe('defaultSessionOrchestrator', () => {
     expect(asrClient.connect).not.toHaveBeenCalled()
     expect(asrClient.start).not.toHaveBeenCalled()
   })
+
+  it('shows error and hides when ASR connect fails', async () => {
+    const onUiToast = vi.fn()
+    const onUiHide = vi.fn()
+    const { orchestrator, asrClient } = createOrchestrator({
+      onUiToast,
+      onUiHide,
+    })
+    asrClient.connect.mockRejectedValueOnce(new Error('asr unavailable'))
+    await orchestrator.init({ delayHotkey: true })
+
+    await orchestrator.handleHotkeyPress({ skipPrerequisiteChecks: true })
+
+    expect(onUiToast).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'error', message: 'asr unavailable' }),
+    )
+    expect(onUiHide).toHaveBeenCalled()
+  })
 })
 
 afterAll(() => {
