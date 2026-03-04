@@ -57,19 +57,12 @@ function isToday(timestamp: number): boolean {
 
 // 工具函数已从 composables/useFormatters.ts 导入，不再在此定义
 
-const todayUsageCount = computed(
-  () => historyEntries.value.filter(item => isToday(item.triggeredAt)).length,
-)
 const todayChars = computed(() =>
   historyEntries.value
     .filter(item => isToday(item.triggeredAt))
     .reduce((sum, item) => sum + item.textLength, 0),
 )
-const todayAudioDurationMs = computed(() =>
-  historyEntries.value
-    .filter(item => isToday(item.triggeredAt))
-    .reduce((sum, item) => sum + item.elapsedMs, 0),
-)
+
 const totalChars = computed(() =>
   historyEntries.value.reduce((sum, item) => sum + item.textLength, 0),
 )
@@ -80,11 +73,6 @@ const recentHistory = computed(() => historyEntries.value.slice(0, 8))
 
 const statCards = computed(() => [
   {
-    label: '今日使用次数',
-    value: String(todayUsageCount.value),
-    tone: 'from-yl-stat-1-from to-yl-stat-1-to',
-  },
-  {
     label: '今日识别字数',
     value: String(todayChars.value),
     tone: 'from-yl-stat-2-from to-yl-stat-2-to',
@@ -93,11 +81,6 @@ const statCards = computed(() => [
     label: '累计识别字数',
     value: String(totalChars.value),
     tone: 'from-yl-stat-2-from to-yl-stat-2-to',
-  },
-  {
-    label: '今日音频时长',
-    value: formatDuration(todayAudioDurationMs.value),
-    tone: 'from-yl-stat-3-from to-yl-stat-3-to',
   },
   {
     label: '累计音频时长',
@@ -239,66 +222,72 @@ function closeDialog() {
 </script>
 
 <template>
+  <div class="fixed top-0 left-0 z-100 w-full h-4 shrink-0 [-webkit-app-region:drag]" />
   <div
-    class="min-h-screen px-6 pt-12 pb-5 text-yl-ink-900 font-yl-sans"
-    style="--yl-sticky-offset: 80px;"
+    class="h-screen overflow-hidden text-yl-ink-900 font-yl-sans"
   >
-    <div
-      class="fixed inset-x-0 top-0 z-60 h-11 bg-transparent [-webkit-app-region:drag]"
-    />
-    <div class="relative mx-auto max-w-410 space-y-4">
-      <AppSidebar
-        :menu-items="menuItems"
-        :active-menu="activeMenu"
-        @update:active-menu="activeMenu = $event"
-      />
-
-      <main class="space-y-4">
-        <HomePage
-          v-if="activeMenu === 'home'"
-          :stat-cards="statCards"
-          :recent-history="recentHistory"
-          @clear-history="clearHistory"
+    <div class="relative mx-auto h-full w-full grid grid-cols-[220px_minmax(0,1fr)] gap-1">
+      <div
+        class="p-1"
+      >
+        <AppSidebar
+          :menu-items="menuItems"
+          :active-menu="activeMenu"
+          @update:active-menu="activeMenu = $event"
         />
+      </div>
 
-        <PolishCommandPanel
-          v-else-if="activeMenu === 'polish'"
-          @switch-menu="activeMenu = $event as MenuKey"
-        />
+      <main
+        class="overflow-hidden"
+      >
+        <div class="h-full overflow-y-auto px-1">
+          <div class="h-4" />
+          <HomePage
+            v-if="activeMenu === 'home'"
+            :stat-cards="statCards"
+            :recent-history="recentHistory"
+            @clear-history="clearHistory"
+          />
 
-        <AiProviderPanel v-else-if="activeMenu === 'provider'" />
+          <PolishCommandPanel
+            v-else-if="activeMenu === 'polish'"
+            @switch-menu="activeMenu = $event as MenuKey"
+          />
 
-        <SettingsPanel
-          v-else-if="activeMenu === 'settings'"
-          :global-shortcut="globalShortcut"
-          :is-capturing-shortcut="isCapturingShortcut"
-          :mic-permission-hint="micPermissionHint"
-          :accessibility-permission-hint="accessibilityPermissionHint"
-          :live-status="liveStatus"
-          :continue-window-ms-input="continueWindowMsInput"
-          :vad-enabled="vadEnabled"
-          :vad-threshold-input="vadThresholdInput"
-          :vad-min-speech-ms-input="vadMinSpeechMsInput"
-          :vad-redemption-ms-input="vadRedemptionMsInput"
-          :vad-min-duration-ms-input="vadMinDurationMsInput"
-          @update:global-shortcut="globalShortcut = $event"
-          @update:is-capturing-shortcut="isCapturingShortcut = $event"
-          @update:continue-window-ms-input="continueWindowMsInput = $event"
-          @apply-continue-window-ms="applyContinueWindowMs"
-          @update:vad-enabled="vadEnabled = $event"
-          @update:vad-threshold-input="vadThresholdInput = $event"
-          @update:vad-min-speech-ms-input="vadMinSpeechMsInput = $event"
-          @update:vad-redemption-ms-input="vadRedemptionMsInput = $event"
-          @update:vad-min-duration-ms-input="vadMinDurationMsInput = $event"
-          @apply-vad-config="applyVadConfig"
-        />
+          <AiProviderPanel v-else-if="activeMenu === 'provider'" />
 
-        <AboutPanel
-          v-else
-          :electron-version="electronVersion"
-          :chrome-version="chromeVersion"
-          :node-version="nodeVersion"
-        />
+          <SettingsPanel
+            v-else-if="activeMenu === 'settings'"
+            :global-shortcut="globalShortcut"
+            :is-capturing-shortcut="isCapturingShortcut"
+            :mic-permission-hint="micPermissionHint"
+            :accessibility-permission-hint="accessibilityPermissionHint"
+            :live-status="liveStatus"
+            :continue-window-ms-input="continueWindowMsInput"
+            :vad-enabled="vadEnabled"
+            :vad-threshold-input="vadThresholdInput"
+            :vad-min-speech-ms-input="vadMinSpeechMsInput"
+            :vad-redemption-ms-input="vadRedemptionMsInput"
+            :vad-min-duration-ms-input="vadMinDurationMsInput"
+            @update:global-shortcut="globalShortcut = $event"
+            @update:is-capturing-shortcut="isCapturingShortcut = $event"
+            @update:continue-window-ms-input="continueWindowMsInput = $event"
+            @apply-continue-window-ms="applyContinueWindowMs"
+            @update:vad-enabled="vadEnabled = $event"
+            @update:vad-threshold-input="vadThresholdInput = $event"
+            @update:vad-min-speech-ms-input="vadMinSpeechMsInput = $event"
+            @update:vad-redemption-ms-input="vadRedemptionMsInput = $event"
+            @update:vad-min-duration-ms-input="vadMinDurationMsInput = $event"
+            @apply-vad-config="applyVadConfig"
+          />
+
+          <AboutPanel
+            v-else
+            :electron-version="electronVersion"
+            :chrome-version="chromeVersion"
+            :node-version="nodeVersion"
+          />
+        </div>
       </main>
     </div>
   </div>

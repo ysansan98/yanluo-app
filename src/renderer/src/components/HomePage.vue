@@ -16,15 +16,17 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <section class="space-y-4">
-    <StatsSection :cards="statCards" />
+  <section class="flex flex-col gap-2">
+    <div class="">
+      <StatsSection :cards="statCards" />
+    </div>
 
     <section
-      class="rounded-[34px] border border-yl-line-350/60 bg-white/88 p-5 shadow-yl-card"
+      class="rounded-[34px] border border-yl-line-350/60 bg-white/88 p-5 shadow-yl-card "
     >
       <div class="mb-3 flex items-center justify-between">
         <div class="text-base font-bold text-yl-ink-650">
-          最近历史记录
+          历史记录
         </div>
         <button
           class="cursor-pointer rounded-full border border-yl-line-280 bg-white px-3 py-1 text-xs text-yl-muted-520"

@@ -14,6 +14,13 @@ export function createMainWindow(
   const mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
+    minWidth: 900,
+    minHeight: 670,
+    maxWidth: 900,
+    maxHeight: 670,
+    resizable: false,
+    fullscreenable: false,
+    trafficLightPosition: { x: 16, y: 16 },
     show: false,
     skipTaskbar: false,
     autoHideMenuBar: true,

@@ -10,7 +10,7 @@ defineProps<Props>()
 </script>
 
 <template>
-  <section class="grid grid-cols-5 gap-3">
+  <section class="grid gap-2 grid-cols-3">
     <DashboardStatCard
       v-for="card in cards"
       :key="card.label"
