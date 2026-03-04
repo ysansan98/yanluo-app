@@ -291,6 +291,10 @@ const api = {
             okResponseSchema.parse(
               await ipcRenderer.invoke('test:shortcut:triggerHub'),
             ),
+          pushHistoryEntry: async (text: string) =>
+            historyEntrySchema.parse(
+              await ipcRenderer.invoke('test:history:push', text),
+            ),
         },
       }
     : {}),

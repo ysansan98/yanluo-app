@@ -75,6 +75,29 @@ pnpm build:win      # Windows 打包
 pnpm build:linux    # Linux 打包
 ```
 
+## 质量门禁与打包验证
+
+- PR/主分支 CI 会执行：`pnpm run lint`、`pnpm run typecheck`、`pnpm run test:unit`
+- E2E 建议按需手动执行：`pnpm run test:e2e`
+
+本地建议在提交前执行：
+
+```bash
+pnpm run lint
+pnpm run typecheck
+pnpm run test:unit
+```
+
+打包验证注意：`python:verify` 依赖 `dist` 产物，需先打包。
+
+```bash
+# 推荐一键命令
+pnpm run verify:packaged
+
+# 等价命令
+pnpm run build:unpack && pnpm run python:verify
+```
+
 ## 里程碑（摘要）
 
 - M1：离线文件转写可用

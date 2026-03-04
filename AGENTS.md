@@ -60,8 +60,10 @@ pnpm run build:mac     # macOS .dmg
 pnpm run build:win     # Windows .exe 安装程序
 pnpm run build:linux   # Linux AppImage/.deb
 
-# 验证打包结果
-pnpm run python:verify
+# 先生成 dist 再验证打包结果
+pnpm run build:unpack && pnpm run python:verify
+# 或使用一键脚本
+pnpm run verify:packaged
 ```
 
 ### 打包架构
@@ -95,7 +97,7 @@ pnpm run python:verify
 - 单元测试：`pnpm run test:unit`（Vitest）
 - 端到端测试：`pnpm run test:e2e`（Playwright + Electron）
 - 全量测试：`pnpm run test:all`
-- PR 的最低门槛：运行 `pnpm lint` 和 `pnpm typecheck`。
+- PR 的最低门槛：运行 `pnpm lint`、`pnpm typecheck`、`pnpm run test:unit`。
 - 对行为变更，请在 PR 描述中提供可复现的手动验证步骤（环境、操作、预期结果）。
 - 若新增测试，优先采用同目录的 `*.test.ts` 文件，并在 `package.json` 中记录新的测试命令。
 

@@ -1,5 +1,4 @@
 import type { RegisterIpcHandlersOptions } from './types'
-import process from 'node:process'
 import { clipboard, ipcMain } from 'electron'
 import {
   clipboardWriteTextRequestSchema,
@@ -119,14 +118,4 @@ export function registerSystemIpcHandlers(
     await sessionOrchestrator.initHotkey?.()
     return okResponseSchema.parse({ ok: true as const })
   })
-
-  if (process.env.NODE_ENV === 'test') {
-    ipcMain.handle('test:shortcut:triggerHub', async () => {
-      await sessionOrchestrator.handleHotkeyPress({
-        skipPrerequisiteChecks: true,
-        testUiOnly: true,
-      })
-      return okResponseSchema.parse({ ok: true as const })
-    })
-  }
 }

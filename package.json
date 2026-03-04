@@ -28,6 +28,7 @@
     "python:prepare": "node build/prepare-python.js",
     "python:clean": "node build/clean-python.js",
     "python:verify": "node build/verify-package.js",
+    "verify:packaged": "pnpm run build:unpack && pnpm run python:verify",
     "build:full": "pnpm run python:prepare && pnpm run build && electron-builder",
     "build:full:verify": "pnpm run build:full && pnpm run python:verify",
     "test:unit": "vitest run",

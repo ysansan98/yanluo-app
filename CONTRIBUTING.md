@@ -50,13 +50,15 @@ PYTHON_FORCE_DOWNLOAD=1 pnpm run python:prepare
 ```bash
 pnpm run lint
 pnpm run typecheck
+pnpm run test:unit
 ```
 
 打包验证（可选但建议）：
 
 ```bash
-pnpm run build
-pnpm run python:verify
+pnpm run build:unpack && pnpm run python:verify
+# 或
+pnpm run verify:packaged
 ```
 
 ## 3. 代码与提交流程

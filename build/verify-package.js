@@ -21,6 +21,10 @@ function findMacAppBundle(platformDir) {
 }
 
 function findAppPackage() {
+  if (!fs.existsSync(DIST_DIR)) {
+    return null
+  }
+
   // 首先检查 macOS（优先检查 .app 包）
   const macDir = path.join(DIST_DIR, 'mac')
   if (fs.existsSync(macDir)) {
@@ -142,6 +146,12 @@ function getDirSize(dirPath) {
 
 function main() {
   console.log('🔍 Verifying package...\n')
+
+  if (!fs.existsSync(DIST_DIR)) {
+    console.error(`❌ dist/ not found: ${DIST_DIR}`)
+    console.log('Run "pnpm run build:unpack" (or build:mac/build:win/build:linux) before verify')
+    process.exit(1)
+  }
 
   const appPackage = findAppPackage()
   if (!appPackage) {

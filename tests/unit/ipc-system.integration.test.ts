@@ -126,19 +126,4 @@ describe('system ipc handlers integration', () => {
     await enableHandler()
     expect(isHotkeyDisabledGlobally()).toBe(false)
   })
-
-  it('test shortcut hook triggers orchestrator with test options', async () => {
-    const options = createBaseOptions()
-    registerSystemIpcHandlers(options)
-
-    const handler = mocked.handlers.get('test:shortcut:triggerHub')
-    expect(handler).toBeTypeOf('function')
-
-    const result = await handler?.()
-    expect(result).toEqual({ ok: true })
-    expect(options.sessionOrchestrator.handleHotkeyPress).toHaveBeenCalledWith({
-      skipPrerequisiteChecks: true,
-      testUiOnly: true,
-    })
-  })
 })

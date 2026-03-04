@@ -3,10 +3,11 @@ import type {
   IGlobalKeyEvent,
   IGlobalKeyListener,
 } from 'node-global-key-listener'
+import type { HotkeyManager, VoiceError } from './types'
 import { chmodSync, existsSync, statSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
-import type { HotkeyManager, VoiceError } from './types'
+import process from 'node:process'
 import { GlobalKeyboardListener } from 'node-global-key-listener'
 
 /**

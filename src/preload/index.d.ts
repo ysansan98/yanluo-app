@@ -157,6 +157,7 @@ interface AppApi {
   app: AppEventApi
   test?: {
     triggerShortcutHub: () => Promise<{ ok: true }>
+    pushHistoryEntry: (text: string) => Promise<HistoryEntry>
   }
 }
 
