@@ -67,8 +67,7 @@ export class VoiceHudManager {
    * 在应用启动时调用
    */
   init(): void {
-    console.log('[HUD] init()')
-    this.windowController.create()
+    console.log('[HUD] init() - lazy mode (create on first show)')
   }
 
   /**
@@ -145,15 +144,7 @@ export class VoiceHudManager {
    * 广播到 HUD 窗口
    */
   private broadcastToHud(channel: string, payload?: unknown): void {
-    const window = this.windowController.getWindow()
-    if (window && !window.isDestroyed()) {
-      try {
-        window.webContents.send(channel, payload)
-      }
-      catch (err) {
-        console.error('[HUD] Failed to send to HUD:', err)
-      }
-    }
+    this.windowController.send(channel, payload)
   }
 
   /**

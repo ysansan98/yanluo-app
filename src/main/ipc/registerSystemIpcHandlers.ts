@@ -112,9 +112,11 @@ export function registerSystemIpcHandlers(
   })
 
   ipcMain.handle('shortcut:initHotkey', async () => {
-    if (onOnboardingComplete) {
-      await onOnboardingComplete()
+    const accessibilityStatus = await permissionChecker.ensureOrPrompt('ACCESSIBILITY')
+    if (accessibilityStatus !== 'GRANTED') {
+      throw new Error('辅助功能权限未授予，无法启用全局快捷键')
     }
+    await sessionOrchestrator.initHotkey?.()
     return okResponseSchema.parse({ ok: true as const })
   })
 

@@ -1,4 +1,5 @@
 import type { BrowserWindow } from 'electron'
+import { BrowserWindow as BW } from 'electron'
 import { VOICE_IPC } from '~shared/voice'
 import { registerAppLifecycle } from './appLifecycle'
 import { AsrService } from './asrService'
@@ -57,13 +58,16 @@ const { hotkeyManager, sessionOrchestrator, permissionChecker, initHotkey }
       const commandName = isPolishEnabled
         ? settingsStore.getAllPolishCommands().find(c => c.id === settings.polish.selectedCommandId)?.name ?? null
         : null
-      void historyStore.create({
+      const entry = historyStore.create({
         source: 'live',
         entryType: isPolishEnabled ? 'polish' : 'asr_only',
         commandName,
         text: payload.finalText,
         audioPath: payload.audioPath,
         triggeredAt: Date.now(),
+      })
+      BW.getAllWindows().forEach((win) => {
+        win.webContents.send('history:created', entry)
       })
     },
     onUiHide: () => {

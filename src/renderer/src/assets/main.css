@@ -3,16 +3,28 @@
 /* 纯色背景 + 滚动条稳定 */
 html, body {
   background: #f8f4ec;
-  scrollbar-gutter: stable;
 }
 
 body {
   min-height: 100vh;
 }
 
+/* HUD 独立窗口需要完全透明背景，避免显示主应用底色 */
+html.voice-hud-route,
+body.voice-hud-route,
+body.voice-hud-route #app {
+  background: transparent !important;
+}
+
+body.voice-hud-route {
+  min-height: 0;
+  overflow: hidden;
+}
+
+
 /* 滚动条轨道背景与页面一致 */
 ::-webkit-scrollbar {
-  width: 12px;
+  width: 10px;
 }
 ::-webkit-scrollbar-track {
   background: #f8f4ec;

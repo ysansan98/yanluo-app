@@ -131,7 +131,7 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
       this.log('failed to initialize hotkey', {
         error: error instanceof Error ? error.message : String(error),
       })
-      // 热键初始化失败不应阻塞应用，用户仍可通过界面按钮使用语音功能
+      throw error
     }
   }
 
@@ -763,16 +763,29 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     }
     this.failing = true
     const err = this.normalizeError(error)
+    const hasActiveSession = Boolean(this.session)
+    const shouldSuppressUiError
+      = phase === 'hotkey-error' && !hasActiveSession
+
     this.transition('FAILED', {
       phase,
       code: err.code,
       message: err.message,
       recoverable: err.recoverable,
+      uiSuppressed: shouldSuppressUiError,
     })
-    this.deps.onUiToast?.({ type: 'error', message: err.message })
+
+    if (!shouldSuppressUiError) {
+      this.deps.onUiToast?.({ type: 'error', message: err.message })
+    }
+
     await this.cleanupSession(`failed:${phase}`, sessionId)
     this.transition('IDLE')
-    this.deps.onUiHide?.()
+
+    if (!shouldSuppressUiError) {
+      this.deps.onUiHide?.()
+    }
+
     this.failing = false
   }
 

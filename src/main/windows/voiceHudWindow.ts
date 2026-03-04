@@ -17,6 +17,11 @@ function getVoiceHudBounds() {
   return { x, y, width: VOICE_HUD_WIDTH, height: VOICE_HUD_HEIGHT }
 }
 
+interface PendingHudMessage {
+  channel: string
+  payload?: unknown
+}
+
 /**
  * Voice HUD 窗口控制器
  *
@@ -26,6 +31,9 @@ function getVoiceHudBounds() {
 export class VoiceHudWindowController {
   private voiceHudWindow: BrowserWindow | null = null
   private hideTimer: NodeJS.Timeout | null = null
+  private isRendererReady = false
+  private shouldShowWhenReady = false
+  private pendingMessages: PendingHudMessage[] = []
 
   constructor() {
     // 空构造函数，options 不再通过外部传入
@@ -42,6 +50,9 @@ export class VoiceHudWindowController {
       console.log('[HUD] Destroying existing window...')
       this.voiceHudWindow.destroy()
     }
+    this.isRendererReady = false
+    this.shouldShowWhenReady = false
+    this.pendingMessages = []
 
     const bounds = getVoiceHudBounds()
     console.log('[HUD] Creating window at:', bounds)
@@ -82,9 +93,9 @@ export class VoiceHudWindowController {
     }
 
     // 调试：自动打开 DevTools（仅开发模式）
-    if (is.dev) {
-      this.voiceHudWindow.webContents.openDevTools({ mode: 'detach' })
-    }
+    // if (is.dev) {
+    //   this.voiceHudWindow.webContents.openDevTools({ mode: 'detach' })
+    // }
 
     if (is.dev && process.env.ELECTRON_RENDERER_URL) {
       void this.voiceHudWindow.loadURL(
@@ -100,9 +111,24 @@ export class VoiceHudWindowController {
       )
     }
 
+    this.voiceHudWindow.webContents.once('did-finish-load', () => {
+      this.isRendererReady = true
+      this.flushPendingMessages()
+      if (this.shouldShowWhenReady) {
+        const readyWindow = this.getWindow()
+        if (readyWindow) {
+          this.showWindow(readyWindow)
+        }
+        this.shouldShowWhenReady = false
+      }
+    })
+
     this.voiceHudWindow.on('closed', () => {
       console.log('[HUD] Window closed')
       this.clearHideTimer()
+      this.isRendererReady = false
+      this.shouldShowWhenReady = false
+      this.pendingMessages = []
       this.voiceHudWindow = null
     })
 
@@ -110,10 +136,48 @@ export class VoiceHudWindowController {
     this.voiceHudWindow.webContents.on('render-process-gone', (_event, details) => {
       console.log('[HUD] Render process gone:', details.reason)
       this.clearHideTimer()
+      this.isRendererReady = false
+      this.shouldShowWhenReady = false
+      this.pendingMessages = []
       this.voiceHudWindow = null
     })
 
     return this.voiceHudWindow
+  }
+
+  private showWindow(window: BrowserWindow): void {
+    if (!window.isVisible()) {
+      const bounds = window.getBounds()
+      const workArea = screen.getPrimaryDisplay().workArea
+      console.log('[HUD] Screen workArea:', workArea)
+      console.log('[HUD] Showing window at:', bounds)
+      window.showInactive()
+      // 强制设置层级
+      window.setAlwaysOnTop(true, 'screen-saver')
+      window.moveTop()
+      console.log('[HUD] Window shown, isVisible:', window.isVisible())
+      return
+    }
+    console.log('[HUD] Window already visible')
+  }
+
+  private flushPendingMessages(): void {
+    if (!this.isRendererReady || this.pendingMessages.length === 0)
+      return
+    const window = this.getWindow()
+    if (!window)
+      return
+
+    const queue = this.pendingMessages
+    this.pendingMessages = []
+    for (const message of queue) {
+      try {
+        window.webContents.send(message.channel, message.payload)
+      }
+      catch (err) {
+        console.error('[HUD] Failed to flush message to HUD:', err)
+      }
+    }
   }
 
   /**
@@ -161,20 +225,12 @@ export class VoiceHudWindowController {
       window = this.create()
     }
     this.clearHideTimer()
-    if (!window.isVisible()) {
-      const bounds = window.getBounds()
-      const workArea = screen.getPrimaryDisplay().workArea
-      console.log('[HUD] Screen workArea:', workArea)
-      console.log('[HUD] Showing window at:', bounds)
-      window.showInactive()
-      // 强制设置层级
-      window.setAlwaysOnTop(true, 'screen-saver')
-      window.moveTop()
-      console.log('[HUD] Window shown, isVisible:', window.isVisible())
+    if (!this.isRendererReady) {
+      this.shouldShowWhenReady = true
+      console.log('[HUD] Renderer not ready, show deferred')
+      return
     }
-    else {
-      console.log('[HUD] Window already visible')
-    }
+    this.showWindow(window)
   }
 
   /**
@@ -190,12 +246,34 @@ export class VoiceHudWindowController {
         if (!nextWindow || nextWindow.isDestroyed())
           return
         console.log('[HUD] Hiding window')
+        this.shouldShowWhenReady = false
         nextWindow.hide()
       }
       catch {
         // 忽略窗口已销毁的错误
       }
     }, debugDelayMs)
+  }
+
+  send(channel: string, payload?: unknown): void {
+    const window = this.getWindow()
+    if (!window || window.isDestroyed())
+      return
+
+    if (!this.isRendererReady) {
+      this.pendingMessages.push({ channel, payload })
+      if (this.pendingMessages.length > 20) {
+        this.pendingMessages.shift()
+      }
+      return
+    }
+
+    try {
+      window.webContents.send(channel, payload)
+    }
+    catch (err) {
+      console.error('[HUD] Failed to send to HUD:', err)
+    }
   }
 
   /**
@@ -226,6 +304,9 @@ export class VoiceHudWindowController {
     if (this.voiceHudWindow && !this.voiceHudWindow.isDestroyed()) {
       this.voiceHudWindow.destroy()
     }
+    this.isRendererReady = false
+    this.shouldShowWhenReady = false
+    this.pendingMessages = []
     this.voiceHudWindow = null
   }
 }

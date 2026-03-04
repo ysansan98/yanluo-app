@@ -3,6 +3,9 @@ import type {
   IGlobalKeyEvent,
   IGlobalKeyListener,
 } from 'node-global-key-listener'
+import { chmodSync, existsSync, statSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { dirname, join } from 'node:path'
 import type { HotkeyManager, VoiceError } from './types'
 import { GlobalKeyboardListener } from 'node-global-key-listener'
 
@@ -168,12 +171,17 @@ export function formatShortcut(config: HotkeyConfig): string {
 }
 
 export class MacGlobalHotkeyManager implements HotkeyManager {
+  private static readonly require = createRequire(import.meta.url)
+
   private readonly keyboard = new GlobalKeyboardListener({
     mac: {
       onError: (errorCode) => {
+        const isAccessibilityError = String(errorCode) === '-13'
         this.emitError({
           code: 'E_HOTKEY_UNAVAILABLE',
-          message: `Global hotkey server error: ${String(errorCode ?? 'unknown')}`,
+          message: isAccessibilityError
+            ? 'Global hotkey server error: -13 (请在系统设置 -> 隐私与安全性 -> 辅助功能中允许应用)'
+            : `Global hotkey server error: ${String(errorCode ?? 'unknown')}`,
           recoverable: true,
         })
       },
@@ -223,6 +231,7 @@ export class MacGlobalHotkeyManager implements HotkeyManager {
       return
 
     try {
+      this.ensureMacKeyServerExecutable()
       await this.keyboard.addListener(this.listener)
       this.started = true
       this.log('registered global key listener', {
@@ -238,6 +247,36 @@ export class MacGlobalHotkeyManager implements HotkeyManager {
         recoverable: false,
       })
       throw error
+    }
+  }
+
+  /**
+   * node-global-key-listener 的 MacKeyServer 在重装依赖后可能丢失执行权限
+   * 这里在启动前自动修复，避免触发 sudo-prompt 兼容性问题。
+   */
+  private ensureMacKeyServerExecutable(): void {
+    if (process.platform !== 'darwin')
+      return
+
+    try {
+      const pkgJsonPath = MacGlobalHotkeyManager.require.resolve(
+        'node-global-key-listener/package.json',
+      )
+      const serverPath = join(dirname(pkgJsonPath), 'bin', 'MacKeyServer')
+      if (!existsSync(serverPath))
+        return
+
+      const mode = statSync(serverPath).mode
+      if ((mode & 0o111) !== 0)
+        return
+
+      chmodSync(serverPath, 0o755)
+      this.log('restored MacKeyServer executable permission', { serverPath })
+    }
+    catch (error) {
+      this.log('failed to ensure MacKeyServer executable', {
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 

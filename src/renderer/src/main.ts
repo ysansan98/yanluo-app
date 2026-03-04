@@ -10,4 +10,10 @@ loadIcons()
 
 initRendererMicCapture()
 const isVoiceHudRoute = window.location.hash.startsWith('#/voice-hud')
+
+if (isVoiceHudRoute) {
+  document.documentElement.classList.add('voice-hud-route')
+  document.body.classList.add('voice-hud-route')
+}
+
 createApp(isVoiceHudRoute ? VoiceHudWindow : App).mount('#app')
