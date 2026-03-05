@@ -196,3 +196,51 @@ export class MacTextInjector implements TextInjector {
     }
   }
 }
+
+export class WindowsTextInjector implements TextInjector {
+  async inject(text: string): Promise<InjectResult> {
+    const normalizedText = text.trim()
+    if (!normalizedText) {
+      return {
+        ok: false,
+        mode: 'CLIPBOARD_ONLY',
+        reason: 'Empty text cannot be injected',
+      }
+    }
+
+    const clipboardSnapshot = captureClipboard()
+    clipboard.writeText(normalizedText)
+
+    if (process.platform !== 'win32') {
+      return {
+        ok: true,
+        mode: 'CLIPBOARD_ONLY',
+        reason:
+          'Clipboard updated (paste shortcut is only implemented on Windows)',
+      }
+    }
+
+    try {
+      await execFileAsync('powershell.exe', [
+        '-NoProfile',
+        '-NonInteractive',
+        '-STA',
+        '-Command',
+        'Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'^v\')',
+      ])
+      await delay(RESTORE_CLIPBOARD_DELAY_MS)
+      await restoreClipboardWithRetry(clipboardSnapshot)
+      return {
+        ok: true,
+        mode: 'PASTE',
+      }
+    }
+    catch (error) {
+      return {
+        ok: true,
+        mode: 'CLIPBOARD_ONLY',
+        reason: error instanceof Error ? error.message : String(error),
+      }
+    }
+  }
+}

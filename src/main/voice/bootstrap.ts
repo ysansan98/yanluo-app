@@ -18,7 +18,11 @@ import {
 import { MacPermissionChecker } from './permissionChecker'
 import { DefaultSessionOrchestrator } from './sessionOrchestrator'
 import { WsStreamingAsrClient } from './streamingAsrClient'
-import { MacTextInjector } from './textInjector'
+import {
+  MacTextInjector,
+  StubTextInjector,
+  WindowsTextInjector,
+} from './textInjector'
 
 export { setHotkeyDisabledGlobally }
 
@@ -73,7 +77,11 @@ export function createVoiceRuntime(
     },
   })
   const permissionChecker = new MacPermissionChecker()
-  const textInjector = new MacTextInjector()
+  const textInjector = process.platform === 'darwin'
+    ? new MacTextInjector()
+    : process.platform === 'win32'
+      ? new WindowsTextInjector()
+      : new StubTextInjector()
   const sessionOrchestrator = new DefaultSessionOrchestrator({
     hotkeyManager,
     audioCapture,
