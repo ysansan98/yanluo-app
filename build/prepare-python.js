@@ -1,12 +1,9 @@
 #!/usr/bin/env node
 /**
- * 准备 Python 嵌入式环境脚本
- * 在构建前下载并配置 python-build-standalone
+ * 鍑嗗 Python 宓屽叆寮忕幆澧冭剼鏈?
+ * 鍦ㄦ瀯寤哄墠涓嬭浇骞堕厤缃?python-build-standalone
  *
- * 使用国内镜像（可选）：
- *   export PYTHON_BUILD_STANDALONE_MIRROR=ghfast
- *   或
- *   export PYTHON_BUILD_STANDALONE_MIRROR=https://ghfast.top/
+ * 下载源固定使用 GitHub 官方 release
  */
 
 const { execSync } = require('node:child_process')
@@ -15,21 +12,13 @@ const https = require('node:https')
 const path = require('node:path')
 const process = require('node:process')
 
-// Python 版本和平台配置
+// Python 鐗堟湰鍜屽钩鍙伴厤缃?
 const PYTHON_VERSION = '3.12.8'
 const PYTHON_BUILD_DATE = '20250115'
+const RELEASE_PATH = '/indygreg/python-build-standalone/releases/download'
 
-// 国内镜像配置
-const MIRRORS = {
-  // 默认官方源
-  github: 'https://github.com',
-  // ghfast - 较稳定的 GitHub 代理
-  ghfast: 'https://ghfast.top/https://github.com',
-  // ghproxy - 另一个常用代理
-  ghproxy: 'https://mirror.ghproxy.com/https://github.com',
-  // GitMirror
-  gitmirror: 'https://hub.gitmirror.com/github.com',
-}
+// 官方下载源
+const GITHUB_BASE = 'https://github.com'
 
 const PLATFORM_CONFIGS = {
   darwin: {
@@ -45,33 +34,36 @@ const PLATFORM_CONFIGS = {
 }
 
 /**
- * 获取基础 URL（支持镜像）
+ * 获取 python-build-standalone release 基础 URL
  */
 function getBaseUrl() {
-  const mirror = process.env.PYTHON_BUILD_STANDALONE_MIRROR || 'github'
-
-  // 如果是预定义的镜像名称
-  if (MIRRORS[mirror]) {
-    return `${MIRRORS[mirror]}/indygreg/python-build-standalone/releases/download`
-  }
-
-  // 如果是完整的 URL（用户自定义）
-  if (mirror.startsWith('http')) {
-    // 如果用户提供了完整的 URL，使用它
-    if (mirror.includes('/indygreg/python-build-standalone/releases/download')) {
-      return mirror
-    }
-    // 否则拼接路径
-    return `${mirror.replace(/\/$/, '')}/indygreg/python-build-standalone/releases/download`
-  }
-
-  // 默认返回官方源
-  return 'https://github.com/indygreg/python-build-standalone/releases/download'
+  return `${GITHUB_BASE}${RELEASE_PATH}`
 }
 
-function getDownloadUrl(filename) {
+function getDownloadCandidates(filename) {
   const baseUrl = getBaseUrl()
-  return `${baseUrl}/${PYTHON_BUILD_DATE}/${filename}`
+  return [`${baseUrl}/${PYTHON_BUILD_DATE}/${filename}`]
+}
+
+async function downloadFileWithFallback(filename, dest) {
+  const urls = getDownloadCandidates(filename)
+  const errors = []
+
+  for (const url of urls) {
+    try {
+      await downloadFile(url, dest)
+      if (errors.length > 0) {
+        console.log(`Downloaded successfully after fallback. URL: ${url}`)
+      }
+      return
+    }
+    catch (error) {
+      errors.push(`${url} -> ${error.message}`)
+      console.warn(`Download failed: ${error.message}`)
+    }
+  }
+
+  throw new Error(`All download sources failed:\n${errors.join('\n')}`)
 }
 
 function downloadFile(url, dest, redirectCount = 0) {
@@ -95,22 +87,22 @@ function downloadFile(url, dest, redirectCount = 0) {
     }
 
     https.get(url, options, (response) => {
-      // 处理重定向
+      // 澶勭悊閲嶅畾鍚?
       if (response.statusCode === 302 || response.statusCode === 301) {
         file.close()
         let redirectUrl = response.headers.location
 
-        // 处理相对路径或协议相对 URL
+        // 澶勭悊鐩稿璺緞鎴栧崗璁浉瀵?URL
         if (redirectUrl.startsWith('//')) {
           redirectUrl = `https:${redirectUrl}`
         }
         else if (redirectUrl.startsWith('/')) {
-          // 可能是代理返回的错误格式，尝试修复
+          // 鍙兘鏄唬鐞嗚繑鍥炵殑閿欒鏍煎紡锛屽皾璇曚慨澶?
           if (redirectUrl.startsWith('/https://') || redirectUrl.startsWith('/http://')) {
             redirectUrl = redirectUrl.substring(1)
           }
           else {
-            // 真正的相对路径，拼接原始 URL
+            // 鐪熸鐨勭浉瀵硅矾寰勶紝鎷兼帴鍘熷 URL
             const urlObj = new URL(url)
             redirectUrl = `${urlObj.protocol}//${urlObj.host}${redirectUrl}`
           }
@@ -136,7 +128,7 @@ function downloadFile(url, dest, redirectCount = 0) {
         downloaded += chunk.length
         if (totalSize > 0) {
           const percent = Math.floor((downloaded / totalSize) * 100)
-          // 每 5% 更新一次，避免频繁输出
+          // 姣?5% 鏇存柊涓€娆★紝閬垮厤棰戠箒杈撳嚭
           if (percent !== lastPercent && percent % 5 === 0) {
             process.stdout.write(`\rProgress: ${percent}% (${(downloaded / 1024 / 1024).toFixed(1)}MB / ${(totalSize / 1024 / 1024).toFixed(1)}MB)`)
             lastPercent = percent
@@ -168,12 +160,12 @@ function extractTarGz(tarPath, destDir) {
   if (!fs.existsSync(destDir)) {
     fs.mkdirSync(destDir, { recursive: true })
   }
-  // macOS/Linux 使用 tar 命令
+  // macOS/Linux 浣跨敤 tar 鍛戒护
   if (process.platform !== 'win32') {
     execSync(`tar -xzf "${tarPath}" -C "${destDir}" --strip-components=1`)
   }
   else {
-    // Windows 可能需要使用第三方工具如 7z 或 tar（Git Bash 自带）
+    // Windows 鍙兘闇€瑕佷娇鐢ㄧ涓夋柟宸ュ叿濡?7z 鎴?tar锛圙it Bash 鑷甫锛?
     try {
       execSync(`tar -xzf "${tarPath}" -C "${destDir}" --strip-components=1`)
     }
@@ -185,17 +177,17 @@ function extractTarGz(tarPath, destDir) {
 }
 
 /**
- * 确保 pip 已安装
+ * 纭繚 pip 宸插畨瑁?
  */
 function ensurePip(pythonPath) {
   try {
-    // 用 import 校验 pip 模块是否真实可用，避免仅残留 dist-info 造成误判
+    // 鐢?import 鏍￠獙 pip 妯″潡鏄惁鐪熷疄鍙敤锛岄伩鍏嶄粎娈嬬暀 dist-info 閫犳垚璇垽
     execSync(`"${pythonPath}" -c "import pip"`, { stdio: 'ignore' })
     console.log('pip already installed')
   }
   catch {
     console.log('Installing pip...')
-    // 先清理可能残留的 pip 元数据，避免 ensurepip 误判“已安装”
+    // 鍏堟竻鐞嗗彲鑳芥畫鐣欑殑 pip 鍏冩暟鎹紝閬垮厤 ensurepip 璇垽鈥滃凡瀹夎鈥?
     const sitePackagesCandidates = [
       path.join(__dirname, '..', 'resources', 'python', 'lib', 'python3.12', 'site-packages'),
       path.join(__dirname, '..', 'resources', 'python', 'Lib', 'site-packages'),
@@ -210,13 +202,13 @@ function ensurePip(pythonPath) {
       }
     }
 
-    // 使用 ensurepip 安装 pip
+    // 浣跨敤 ensurepip 瀹夎 pip
     try {
       execSync(`"${pythonPath}" -m ensurepip --upgrade`, { stdio: 'inherit' })
       console.log('pip installed successfully')
     }
     catch {
-      // ensurepip 可能不可用，尝试下载 get-pip.py
+      // ensurepip 鍙兘涓嶅彲鐢紝灏濊瘯涓嬭浇 get-pip.py
       console.log('ensurepip failed, trying get-pip.py...')
       const fs = require('node:fs')
       const https = require('node:https')
@@ -256,12 +248,12 @@ function installDependencies(pythonPath, asrServiceDir) {
   console.log('Installing ASR dependencies...')
   const requirementsPath = path.join(asrServiceDir, 'requirements.txt')
 
-  // 检查是否需要使用国内 PyPI 镜像
+  // 妫€鏌ユ槸鍚﹂渶瑕佷娇鐢ㄥ浗鍐?PyPI 闀滃儚
   const pypiMirror = process.env.PYPI_MIRROR || ''
   const indexUrlArg = pypiMirror ? `--index-url ${pypiMirror}` : ''
 
-  // 安装 pip 依赖
-  // 首先尝试 --prefer-binary（优先使用 wheel，但允许从源码构建）
+  // 瀹夎 pip 渚濊禆
+  // 棣栧厛灏濊瘯 --prefer-binary锛堜紭鍏堜娇鐢?wheel锛屼絾鍏佽浠庢簮鐮佹瀯寤猴級
   const pipArgs = [
     '-m',
     'pip',
@@ -286,8 +278,8 @@ function installDependencies(pythonPath, asrServiceDir) {
     })
   }
   catch {
-    // 如果失败，尝试强制使用 binary（优先保障 sherpa/onnx 可用）
-    console.log('\n⚠️  Failed with --prefer-binary, trying with --only-binary for core packages...')
+    // 濡傛灉澶辫触锛屽皾璇曞己鍒朵娇鐢?binary锛堜紭鍏堜繚闅?sherpa/onnx 鍙敤锛?
+    console.log('\n鈿狅笍  Failed with --prefer-binary, trying with --only-binary for core packages...')
 
     const binaryOnlyPackages = ['numpy', 'onnx', 'sherpa-onnx-core', 'sherpa-onnx']
     const pipArgsBinary = [
@@ -312,7 +304,7 @@ function installDependencies(pythonPath, asrServiceDir) {
       },
     })
 
-    // 再安装其余依赖
+    // 鍐嶅畨瑁呭叾浣欎緷璧?
     execSync(`"${pythonPath}" ${pipArgs.join(' ')}`, {
       stdio: 'inherit',
       cwd: asrServiceDir,
@@ -326,14 +318,14 @@ function installDependencies(pythonPath, asrServiceDir) {
 }
 
 function runCleanup() {
-  console.log('\n🧹 Cleaning up unnecessary files...')
+  console.log('\n馃Ч Cleaning up unnecessary files...')
   try {
     execSync(`node "${path.join(__dirname, 'clean-python.js')}"`, {
       stdio: 'inherit',
     })
   }
   catch (cleanError) {
-    console.warn('⚠️  Cleanup warning:', cleanError.message)
+    console.warn('鈿狅笍  Cleanup warning:', cleanError.message)
   }
 }
 
@@ -345,38 +337,38 @@ async function main() {
   const pythonDir = path.join(resourcesDir, 'python')
   const tempDir = path.join(__dirname, '..', 'temp')
 
-  // 获取 Python 可执行文件路径
-  // 使用具体版本的可执行文件（如 python3.12）避免符号链接问题
+  // 鑾峰彇 Python 鍙墽琛屾枃浠惰矾寰?
+  // 浣跨敤鍏蜂綋鐗堟湰鐨勫彲鎵ц鏂囦欢锛堝 python3.12锛夐伩鍏嶇鍙烽摼鎺ラ棶棰?
   const pythonExe = process.platform === 'win32'
     ? path.join(pythonDir, 'python.exe')
     : path.join(pythonDir, 'bin', 'python3.12')
 
-  // 检查 Python 是否已存在
+  // 妫€鏌?Python 鏄惁宸插瓨鍦?
   const pythonExists = fs.existsSync(pythonExe)
 
-  // 如果 Python 已存在且强制重新下载标志未设置，只更新依赖
+  // 濡傛灉 Python 宸插瓨鍦ㄤ笖寮哄埗閲嶆柊涓嬭浇鏍囧織鏈缃紝鍙洿鏂颁緷璧?
   if (pythonExists && process.env.PYTHON_FORCE_DOWNLOAD !== '1') {
-    console.log('🔄 Python already exists, updating dependencies only...')
+    console.log('馃攧 Python already exists, updating dependencies only...')
     console.log(`   Location: ${pythonDir}`)
     console.log('   (Use PYTHON_FORCE_DOWNLOAD=1 to re-download Python)')
 
     const version = execSync(`"${pythonExe}" --version`).toString().trim()
     console.log(`\nPython version: ${version}`)
 
-    // 确保 pip 已安装
+    // 纭繚 pip 宸插畨瑁?
     await ensurePip(pythonExe)
 
-    // 安装/更新依赖
+    // 瀹夎/鏇存柊渚濊禆
     const asrServiceDir = path.join(__dirname, '..', 'services', 'asr')
     installDependencies(pythonExe, asrServiceDir)
 
     runCleanup()
 
-    console.log('\n✅ Dependencies updated successfully!')
+    console.log('\n鉁?Dependencies updated successfully!')
     return
   }
 
-  // 显示配置信息
+  // 鏄剧ず閰嶇疆淇℃伅
   const mirror = process.env.PYTHON_BUILD_STANDALONE_MIRROR || 'github'
   console.log(`Using mirror: ${mirror}`)
   console.log(`Base URL: ${getBaseUrl()}`)
@@ -393,7 +385,7 @@ async function main() {
 
   const tarPath = path.join(tempDir, filename)
 
-  // 清理并创建目录
+  // 娓呯悊骞跺垱寤虹洰褰?
   if (fs.existsSync(pythonDir)) {
     console.log('Removing existing Python directory...')
     fs.rmSync(pythonDir, { recursive: true })
@@ -402,45 +394,52 @@ async function main() {
   fs.mkdirSync(pythonDir, { recursive: true })
 
   try {
-    // 下载 Python 嵌入式环境
-    const url = getDownloadUrl(filename)
-    await downloadFile(url, tarPath)
+    // 涓嬭浇 Python 宓屽叆寮忕幆澧?
+    await downloadFileWithFallback(filename, tarPath)
 
-    // 解压
+    // 瑙ｅ帇
     extractTarGz(tarPath, pythonDir)
 
-    // 验证 Python 可用
+    // 楠岃瘉 Python 鍙敤
     const version = execSync(`"${pythonExe}" --version`).toString().trim()
     console.log(`Python installed: ${version}`)
 
-    // 安装 ASR 依赖
+    // 瀹夎 ASR 渚濊禆
     const asrServiceDir = path.join(__dirname, '..', 'services', 'asr')
     installDependencies(pythonExe, asrServiceDir)
 
-    // 清理不必要的文件以减小体积
+    // 娓呯悊涓嶅繀瑕佺殑鏂囦欢浠ュ噺灏忎綋绉?
     runCleanup()
 
-    console.log('\n✅ Python environment prepared successfully!')
+    console.log('\n鉁?Python environment prepared successfully!')
     console.log(`Location: ${pythonDir}`)
   }
   catch (error) {
-    console.error('\n❌ Failed to prepare Python environment')
+    console.error('\n鉂?Failed to prepare Python environment')
     console.error(`Error: ${error.message}`)
 
-    // 提供故障排除建议
-    if (error.message.includes('ECONNREFUSED') || error.message.includes('ETIMEDOUT')) {
-      console.log('\n💡 Troubleshooting tips:')
+    // 鎻愪緵鏁呴殰鎺掗櫎寤鸿
+    if (
+      error.message.includes('ECONNREFUSED')
+      || error.message.includes('ETIMEDOUT')
+      || error.message.includes('HTTP 403')
+      || error.message.includes('HTTP 404')
+      || error.message.includes('All download sources failed')
+    ) {
+      console.log('\n馃挕 Troubleshooting tips:')
       console.log('   1. Try using a mirror:')
-      console.log('      export PYTHON_BUILD_STANDALONE_MIRROR=ghfast')
+      console.log('      PowerShell: $env:PYTHON_BUILD_STANDALONE_MIRROR=\"ghfast\"')
+      console.log('      Bash: export PYTHON_BUILD_STANDALONE_MIRROR=ghfast')
       console.log('   2. Available mirrors: github, ghfast, ghproxy, gitmirror')
       console.log('   3. Or set a custom mirror URL:')
-      console.log('      export PYTHON_BUILD_STANDALONE_MIRROR=https://your-mirror.com/')
+      console.log('      PowerShell: $env:PYTHON_BUILD_STANDALONE_MIRROR=\"https://your-mirror.com/\"')
+      console.log('      Bash: export PYTHON_BUILD_STANDALONE_MIRROR=https://your-mirror.com/')
     }
 
     throw error
   }
   finally {
-    // 清理临时文件
+    // 娓呯悊涓存椂鏂囦欢
     if (fs.existsSync(tarPath)) {
       fs.unlinkSync(tarPath)
     }
@@ -454,3 +453,4 @@ main().catch((err) => {
   console.error('Error:', err.message)
   process.exit(1)
 })
+
