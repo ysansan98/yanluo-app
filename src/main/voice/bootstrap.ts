@@ -9,8 +9,11 @@ import type {
   VoiceUiToastPayload,
   VoiceUiUpdatePayload,
 } from './types'
+import { join } from 'node:path'
+import process from 'node:process'
+import { app } from 'electron'
+import { createHotkeyManager } from '../keyboard'
 import { RendererAudioCapture } from './audioCapture'
-import { MacGlobalHotkeyManager } from './hotkeyManager'
 import {
   isHotkeyDisabledGlobally,
   setHotkeyDisabledGlobally,
@@ -54,7 +57,12 @@ export function createVoiceRuntime(
   // 从设置中读取快捷键配置
   const savedShortcut = options.settingsStore.getShortcut()
 
-  const hotkeyManager = new MacGlobalHotkeyManager({
+  const resourcesPath = app.isPackaged
+    ? process.resourcesPath
+    : join(app.getAppPath(), 'resources')
+
+  const hotkeyManager = createHotkeyManager({
+    resourcesPath,
     shortcut: savedShortcut ?? undefined,
     log: (message, extra) => {
       console.info(`[voice-hotkey] ${message}`, extra ?? {})

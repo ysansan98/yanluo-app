@@ -49,6 +49,13 @@ const config: Configuration = {
   // Python 嵌入式环境打包配置
   extraResources: [
     {
+      from: 'resources/lib',
+      to: 'lib',
+      filter: [
+        '**/*',
+      ],
+    },
+    {
       from: 'resources/python',
       to: 'python',
       filter: [
