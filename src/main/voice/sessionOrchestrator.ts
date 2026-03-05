@@ -399,12 +399,16 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     })
 
     this.deps.audioCapture.onSilentCancel?.(() => {
-      if (this.state === 'STREAMING' || this.state === 'FINALIZING') {
-        const sessionId = this.session?.sessionId
-        if (sessionId) {
-          this.log('silent cancel requested by VAD', { sessionId })
-          void this.handleSilentCancel(sessionId)
-        }
+      // Only cancel while actively streaming.
+      // In FINALIZING, canceling here can drop already captured partial/final text
+      // and skip injection.
+      if (this.state !== 'STREAMING') {
+        return
+      }
+      const sessionId = this.session?.sessionId
+      if (sessionId) {
+        this.log('silent cancel requested by VAD', { sessionId })
+        void this.handleSilentCancel(sessionId)
       }
     })
 
