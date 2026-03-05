@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HistoryEntry } from '../types/ui'
 import { ref } from 'vue'
-import { formatDuration, formatTime, sourceLabel } from '../utils'
+import { formatTime, sourceLabel } from '../utils'
 import HistoryAudioPlayer from './HistoryAudioPlayer.vue'
 import Icon from './Icon.vue'
 
@@ -66,7 +66,6 @@ async function handleCopy(event: MouseEvent) {
         <span>{{ entryTypeLabel(entry.entryType, entry.commandName) }}</span>
         <span>{{ formatTime(entry.triggeredAt) }}</span>
         <span>{{ entry.language }}</span>
-        <span>{{ formatDuration(entry.elapsedMs) }}</span>
       </div>
       <div v-if="entry.audioPath" class="flex items-center gap-1">
         <span class="text-xs text-yl-muted-380">{{

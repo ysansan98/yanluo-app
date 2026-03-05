@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import process from 'node:process'
 import Database from 'better-sqlite3'
 import { app } from 'electron'
 
@@ -32,7 +33,14 @@ export interface HistoryEntry {
 }
 
 function getDbPath(): string {
-  const dataDir = join(app.getPath('userData'), 'data')
+  const appPath = app.getAppPath()
+  const devProjectRoot = existsSync(join(process.cwd(), 'package.json'))
+    ? process.cwd()
+    : appPath
+  const baseDir = app.isPackaged
+    ? app.getPath('userData')
+    : devProjectRoot
+  const dataDir = join(baseDir, 'data')
   if (!existsSync(dataDir)) {
     mkdirSync(dataDir, { recursive: true })
   }
