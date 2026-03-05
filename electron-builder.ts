@@ -97,6 +97,8 @@ const config: Configuration = {
     shortcutName: '${productName}',
     uninstallDisplayName: '${productName}',
     createDesktopShortcut: 'always',
+    oneClick: false,
+    allowToChangeInstallationDirectory: true,
   },
 
   // macOS 配置
