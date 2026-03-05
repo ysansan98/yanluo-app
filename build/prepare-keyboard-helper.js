@@ -14,6 +14,7 @@ const candidates = platform === 'darwin'
     ]
   : platform === 'win32'
     ? [
+        join(root, 'native', 'keyboard-helper', 'build-win-msvc', 'Release', 'KeyboardHelper.dll'),
         join(root, 'native', 'keyboard-helper', 'build-win', 'Release', 'KeyboardHelper.dll'),
         join(root, 'native', 'keyboard-helper', 'build', 'Release', 'KeyboardHelper.dll'),
       ]
