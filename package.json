@@ -25,6 +25,9 @@
     "build:win": "pnpm run build && electron-builder --win",
     "build:mac": "pnpm run build && electron-builder --mac",
     "build:linux": "pnpm run build && electron-builder --linux",
+    "keyboard:prepare": "node build/prepare-keyboard-helper.js",
+    "keyboard:build:mac": "cmake -S native/keyboard-helper -B native/keyboard-helper/build-mac && cmake --build native/keyboard-helper/build-mac --config Release && pnpm run keyboard:prepare",
+    "keyboard:build:win": "cmake -S native/keyboard-helper -B native/keyboard-helper/build-win -A x64 && cmake --build native/keyboard-helper/build-win --config Release && pnpm run keyboard:prepare",
     "python:prepare": "node build/prepare-python.js",
     "python:clean": "node build/clean-python.js",
     "python:verify": "node build/verify-package.js",
@@ -47,7 +50,7 @@
     "better-sqlite3": "^12.6.2",
     "electron-store": "^11.0.2",
     "electron-updater": "^6.3.9",
-    "node-global-key-listener": "^0.3.0",
+    "koffi": "^2.11.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

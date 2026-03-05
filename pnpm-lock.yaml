@@ -38,9 +38,9 @@ importers:
       electron-updater:
         specifier: ^6.3.9
         version: 6.8.3
-      node-global-key-listener:
-        specifier: ^0.3.0
-        version: 0.3.0
+      koffi:
+        specifier: ^2.11.0
+        version: 2.15.1
       zod:
         specifier: ^4.3.6
         version: 4.3.6
@@ -2554,6 +2554,9 @@ packages:
   keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
 
+  koffi@2.15.1:
+    resolution: {integrity: sha512-mnc0C0crx/xMSljb5s9QbnLrlFHprioFO1hkXyuSuO/QtbpLDa0l/uM21944UfQunMKmp3/r789DTDxVyyH6aA==}
+
   launch-ide@1.4.0:
     resolution: {integrity: sha512-c2mcqZy7mNhzXiWoBFV0lDsEOfpSFGqqxKubPffhqcnv3GV0xpeGcHWLxYFm+jz1/5VAKp796QkyVV4++07eiw==}
 
@@ -2961,9 +2964,6 @@ packages:
 
   node-api-version@0.2.1:
     resolution: {integrity: sha512-2xP/IGGMmmSQpI1+O/k72jF/ykvZ89JeuKX3TLJAYPDVLUalrshrLHkeVcCCZqG/eEa635cr8IBYzgnDvM2O8Q==}
-
-  node-global-key-listener@0.3.0:
-    resolution: {integrity: sha512-yWB1OFrDlzXYm3+hYcE8xOscvclpBAQGXcBnc2ytenFLkZfxFipuCwhuIIlIKVtwBuDRkdXJVZMqN99cPVBFFA==}
 
   node-gyp@11.5.0:
     resolution: {integrity: sha512-ra7Kvlhxn5V9Slyus0ygMa2h+UqExPqUIkfk7Pc8QTLT956JLSy51uWFwHtIYy0vI8cB4BDhc/S03+880My/LQ==}
@@ -3395,10 +3395,6 @@ packages:
 
   stubborn-utils@1.0.2:
     resolution: {integrity: sha512-zOh9jPYI+xrNOyisSelgym4tolKTJCQd5GBhK0+0xJvcYDcwlOoxF/rnFKQ2KRZknXSG9jWAp66fwP6AxN9STg==}
-
-  sudo-prompt@9.2.1:
-    resolution: {integrity: sha512-Mu7R0g4ig9TUuGSxJavny5Rv0egCEtpZRNMrZaYS1vxkiIxGiGUwoezU3LazIQ+KE04hTrTfNPgxU5gzi7F5Pw==}
-    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   sumchecker@3.0.1:
     resolution: {integrity: sha512-MvjXzkz/BOfyVDkG0oFOtBxHX2u3gKbMHIF/dXblZsgD3BWOFLmHovIpZY7BykJdAjcqRCBi1WYBNdEC9yI7vg==}
@@ -6354,6 +6350,8 @@ snapshots:
     dependencies:
       json-buffer: 3.0.1
 
+  koffi@2.15.1: {}
+
   launch-ide@1.4.0:
     dependencies:
       chalk: 4.1.1
@@ -6911,10 +6909,6 @@ snapshots:
     dependencies:
       semver: 7.7.4
 
-  node-global-key-listener@0.3.0:
-    dependencies:
-      sudo-prompt: 9.2.1
-
   node-gyp@11.5.0:
     dependencies:
       env-paths: 2.2.1
@@ -7369,8 +7363,6 @@ snapshots:
       stubborn-utils: 1.0.2
 
   stubborn-utils@1.0.2: {}
-
-  sudo-prompt@9.2.1: {}
 
   sumchecker@3.0.1:
     dependencies:

@@ -33,3 +33,8 @@ services/asr/shims/**/*.egg-info/
 resources/python/
 !resources/icon.png
 temp/
+
+# keyboard helper native build artifacts
+native/keyboard-helper/build*/
+resources/lib/keyboard-helper/build/*.dylib
+resources/lib/keyboard-helper/build/*.dll
