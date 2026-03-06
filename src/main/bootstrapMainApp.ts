@@ -5,6 +5,8 @@ import type { ModelDownloader } from './modelManager'
 import type { SettingsStore } from './settingsStore'
 import type { PermissionChecker, SessionOrchestrator } from './voice/types'
 import type { VoiceHudManager } from './voiceHud/voiceHudManager'
+import type { VoiceWorkerWindowController } from './windows/voiceWorkerWindow'
+import process from 'node:process'
 import { app, screen } from 'electron'
 import { setupMediaPermissionHandlers } from './permissions/mediaPermissions'
 import { registerIpcHandlers } from './registerIpcHandlers'
@@ -18,11 +20,12 @@ interface CreateMainAppHandlersOptions {
   settingsStore: SettingsStore
   permissionChecker: PermissionChecker
   voiceHudManager: VoiceHudManager
+  voiceWorkerWindow: VoiceWorkerWindowController
   createMainWindow: () => BrowserWindow
   getMainWindow: () => BrowserWindow | null
   setMainWindow: (window: BrowserWindow) => void
   /**
-   * 延迟初始化热键（在引导完成后调用，避免启动时立即请求辅助功能权限）
+   * 初始化热键
    */
   initHotkey?: () => Promise<void>
 }
@@ -47,6 +50,7 @@ export function createMainAppHandlers(
     settingsStore,
     setMainWindow,
     voiceHudManager,
+    voiceWorkerWindow,
   } = options
 
   const { initHotkey } = options
@@ -80,13 +84,10 @@ export function createMainAppHandlers(
       sessionOrchestrator.setContinueWindowMs?.(
         settingsStore.get().voice.continueWindowMs,
       )
-      // 延迟热键初始化，避免启动时立即请求辅助功能权限
+      // 默认不在 init 阶段绑定热键，由后续流程显式初始化
       sessionOrchestrator.init({ delayHotkey: true }).catch((err) => {
         console.error('Failed to initialize voice session orchestrator:', err)
       })
-
-      const mainWindow = createMainWindow()
-      setMainWindow(mainWindow)
       statusBarTray.create({
         getMainWindow,
         createMainWindow,
@@ -100,29 +101,30 @@ export function createMainAppHandlers(
       // 检查是否需要显示引导页
       const onboardingConfig = settingsStore.get().onboarding
       if (!onboardingConfig.completed) {
+        const mainWindow = createMainWindow()
+        setMainWindow(mainWindow)
         mainWindow.webContents.once('did-finish-load', () => {
           mainWindow.webContents.send('app:showOnboarding')
         })
       }
+      else if (process.platform === 'darwin') {
+        // 已完成引导时默认后台常驻，仅通过状态栏打开主窗口。
+        app.dock?.hide()
+      }
 
-      // 延迟初始化热键，避免启动时立即请求辅助功能权限
-      // 如果引导已完成，页面加载后延迟初始化；如果引导未完成，在引导完成后通过回调初始化
       if (onboardingConfig.completed) {
-        // 引导已完成，页面加载后延迟 2 秒初始化热键
-        mainWindow.webContents.once('did-finish-load', () => {
-          setTimeout(() => {
-            if (initHotkey) {
-              void initHotkey().catch((err) => {
-                console.error('Failed to initialize hotkey:', err)
-              })
-            }
-          }, 2000)
-        })
+        const configuredShortcut = settingsStore.getShortcut()
+        if (configuredShortcut && initHotkey) {
+          void initHotkey().catch((err) => {
+            console.error('Failed to initialize hotkey:', err)
+          })
+        }
       }
       // 如果引导未完成，onOnboardingComplete 回调会在引导完成后调用 initHotkey
 
       // 通过 VoiceHudManager 初始化 HUD（唯一入口）
       voiceHudManager.init()
+      voiceWorkerWindow.init()
 
       // 屏幕变化时更新 HUD 位置
       screen.on('display-metrics-changed', () =>
@@ -131,6 +133,9 @@ export function createMainAppHandlers(
       screen.on('display-removed', () => voiceHudManager.updateBounds())
     },
     onActivate: () => {
+      if (settingsStore.get().onboarding.completed) {
+        return
+      }
       const mainWindow = getMainWindow()
       if (!mainWindow || mainWindow.isDestroyed())
         setMainWindow(createMainWindow())
@@ -141,6 +146,7 @@ export function createMainAppHandlers(
       statusBarTray.destroy()
       // 通过 VoiceHudManager 销毁 HUD（唯一入口）
       voiceHudManager.dispose()
+      voiceWorkerWindow.dispose()
       asrService.stop()
       sessionOrchestrator.dispose().catch((err) => {
         console.error('Failed to dispose voice session orchestrator:', err)

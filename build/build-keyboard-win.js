@@ -39,9 +39,9 @@ function readVsGenerator(rootDir) {
       ?? first?.installationVersion?.split('.')?.[0]
       ?? ''
     const map = {
-      '18': 'Visual Studio 18 2026',
-      '17': 'Visual Studio 17 2022',
-      '16': 'Visual Studio 16 2019',
+      18: 'Visual Studio 18 2026',
+      17: 'Visual Studio 17 2022',
+      16: 'Visual Studio 16 2019',
     }
     return map[String(major)] ?? null
   }

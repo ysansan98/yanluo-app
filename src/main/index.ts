@@ -10,17 +10,31 @@ import { SettingsStore } from './settingsStore'
 import { createVoiceRuntime } from './voice'
 import { VoiceHudManager } from './voiceHud/voiceHudManager'
 import { createMainWindow } from './windows/mainWindow'
+import { VoiceWorkerWindowController } from './windows/voiceWorkerWindow'
 
 const asrService = new AsrService()
 const historyStore = new HistoryStore()
 const modelDownloader = new ModelDownloader()
 const settingsStore = new SettingsStore()
 let mainWindow: BrowserWindow | null = null
+const voiceWorkerWindow = new VoiceWorkerWindowController()
+
+function getMainWebContents() {
+  if (!mainWindow || mainWindow.isDestroyed())
+    return null
+
+  const { webContents } = mainWindow
+  if (webContents.isDestroyed())
+    return null
+
+  return webContents
+}
 
 function sendToMainWindow(channel: string, payload?: unknown): void {
-  if (!mainWindow || mainWindow.isDestroyed())
+  const webContents = getMainWebContents()
+  if (!webContents)
     return
-  mainWindow.webContents.send(channel, payload)
+  webContents.send(channel, payload)
 }
 
 /**
@@ -32,7 +46,7 @@ const voiceHudManager = new VoiceHudManager()
 const { hotkeyManager, sessionOrchestrator, permissionChecker, initHotkey }
   = createVoiceRuntime({
     asrBaseUrl: asrService.baseUrl,
-    getTargetWebContents: () => mainWindow?.webContents ?? null,
+    getTargetWebContents: () => voiceWorkerWindow.getWebContents(),
     getMainWindow: () => mainWindow,
     settingsStore,
     onUiShow: (payload) => {
@@ -88,7 +102,8 @@ const appHandlers = createMainAppHandlers({
   settingsStore,
   permissionChecker,
   voiceHudManager, // 传递 Manager 而不是 Controller
-  initHotkey, // 延迟初始化热键，避免启动时立即请求辅助功能权限
+  voiceWorkerWindow,
+  initHotkey,
   createMainWindow: () => createMainWindow({ icon: undefined }),
   getMainWindow: () => {
     if (!mainWindow || mainWindow.isDestroyed())
