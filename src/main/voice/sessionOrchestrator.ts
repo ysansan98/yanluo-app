@@ -61,6 +61,7 @@ interface ActiveSession {
   finalText: string
   carryPrefix: string
   audioChunks: Buffer[]
+  pendingAsrChunks: Buffer[]
   silentCancelRequested: boolean
 }
 
@@ -254,6 +255,7 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
       finalText: '',
       carryPrefix,
       audioChunks: [],
+      pendingAsrChunks: [],
       silentCancelRequested: false,
       metrics: {
         sessionId,
@@ -278,15 +280,17 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
         )
       }
 
+      // 先启动采集，避免 ASR 建连耗时导致首字丢失。
+      await this.deps.audioCapture.start()
       await this.deps.asrClient.connect()
       await this.deps.asrClient.start({
         sessionId,
         sampleRate: 16000,
         language: 'auto',
       })
-      await this.deps.audioCapture.start()
 
       this.transition('STREAMING', { sessionId })
+      await this.flushPendingAsrChunks(sessionId)
       this.deps.onUiUpdate?.({
         sessionId,
         status: 'recording',
@@ -390,9 +394,19 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     }
 
     this.deps.audioCapture.onChunk((chunk) => {
-      if (this.state !== 'STREAMING')
+      const session = this.session
+      if (!session)
         return
-      this.session?.audioChunks.push(chunk.pcm16le)
+      if (this.state !== 'ARMING' && this.state !== 'STREAMING')
+        return
+
+      session.audioChunks.push(chunk.pcm16le)
+
+      if (this.state === 'ARMING' || session.pendingAsrChunks.length > 0) {
+        session.pendingAsrChunks.push(chunk.pcm16le)
+        return
+      }
+
       void this.deps.asrClient.sendAudio(chunk.pcm16le).catch((error) => {
         void this.fail(error, 'send-audio-failed')
       })
@@ -738,6 +752,26 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
         return
       }
       await this.fail(error, 'finalize-session', sessionId)
+    }
+  }
+
+  private async flushPendingAsrChunks(sessionId: string): Promise<void> {
+    const session = this.session
+    if (!session || session.sessionId !== sessionId)
+      return
+
+    if (session.pendingAsrChunks.length === 0)
+      return
+
+    const backlog = session.pendingAsrChunks
+    session.pendingAsrChunks = []
+    this.log('flush pending audio chunks', {
+      sessionId,
+      chunkCount: backlog.length,
+    })
+
+    for (const chunk of backlog) {
+      await this.deps.asrClient.sendAudio(chunk)
     }
   }
 
