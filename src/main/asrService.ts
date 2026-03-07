@@ -19,6 +19,7 @@ export interface AsrHealth {
 export class AsrService {
   private proc: ChildProcessWithoutNullStreams | null = null
   private port = DEFAULT_PORT
+  private forceKillTimer: NodeJS.Timeout | null = null
 
   get baseUrl(): string {
     return `http://127.0.0.1:${this.port}`
@@ -65,6 +66,10 @@ export class AsrService {
     })
 
     this.proc.on('exit', () => {
+      if (this.forceKillTimer) {
+        clearTimeout(this.forceKillTimer)
+        this.forceKillTimer = null
+      }
       this.proc = null
     })
 
@@ -72,10 +77,29 @@ export class AsrService {
   }
 
   stop(): void {
-    if (!this.proc)
+    const proc = this.proc
+    if (!proc)
       return
-    this.proc.kill()
-    this.proc = null
+
+    try {
+      proc.kill('SIGTERM')
+    }
+    catch {}
+
+    if (this.forceKillTimer) {
+      clearTimeout(this.forceKillTimer)
+      this.forceKillTimer = null
+    }
+
+    this.forceKillTimer = setTimeout(() => {
+      if (!this.proc || this.proc !== proc)
+        return
+      try {
+        proc.kill('SIGKILL')
+      }
+      catch {}
+    }, 800)
+    this.forceKillTimer.unref?.()
   }
 
   async health(): Promise<AsrHealth> {

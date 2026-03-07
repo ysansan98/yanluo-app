@@ -1,4 +1,5 @@
 import type { BrowserWindow } from 'electron'
+import { spawn } from 'node:child_process'
 import type { AsrService } from './asrService'
 import type { HistoryStore } from './historyStore'
 import type { ModelDownloader } from './modelManager'
@@ -11,6 +12,7 @@ import { app, screen } from 'electron'
 import { setupMediaPermissionHandlers } from './permissions/mediaPermissions'
 import { registerIpcHandlers } from './registerIpcHandlers'
 import { StatusBarTray } from './statusBarTray'
+import { setHotkeyDisabledGlobally } from './voice/hotkeyState'
 
 interface CreateMainAppHandlersOptions {
   asrService: AsrService
@@ -55,6 +57,37 @@ export function createMainAppHandlers(
 
   const { initHotkey } = options
   const statusBarTray = new StatusBarTray()
+  let quitWatchdogArmed = false
+
+  const armQuitWatchdog = () => {
+    if (quitWatchdogArmed)
+      return
+    quitWatchdogArmed = true
+
+    const pid = process.pid
+    const cmd = `sleep 2; kill -0 ${pid} >/dev/null 2>&1 && kill -9 ${pid} >/dev/null 2>&1 || true`
+    const helper = spawn('/bin/sh', ['-c', cmd], {
+      detached: true,
+      stdio: 'ignore',
+    })
+    helper.unref()
+  }
+
+  const quitAppFromTray = () => {
+    setHotkeyDisabledGlobally(true)
+    statusBarTray.destroy()
+    armQuitWatchdog()
+    app.quit()
+  }
+
+  const ensureTray = () => {
+    statusBarTray.create({
+      getMainWindow,
+      createMainWindow,
+      setMainWindow,
+      onQuit: quitAppFromTray,
+    })
+  }
 
   return {
     onReady: () => {
@@ -88,15 +121,7 @@ export function createMainAppHandlers(
       sessionOrchestrator.init({ delayHotkey: true }).catch((err) => {
         console.error('Failed to initialize voice session orchestrator:', err)
       })
-      statusBarTray.create({
-        getMainWindow,
-        createMainWindow,
-        setMainWindow,
-        onQuit: () => {
-          statusBarTray.destroy()
-          app.quit()
-        },
-      })
+      ensureTray()
 
       // 检查是否需要显示引导页
       const onboardingConfig = settingsStore.get().onboarding
@@ -133,6 +158,7 @@ export function createMainAppHandlers(
       screen.on('display-removed', () => voiceHudManager.updateBounds())
     },
     onActivate: () => {
+      ensureTray()
       if (settingsStore.get().onboarding.completed) {
         return
       }
@@ -143,6 +169,8 @@ export function createMainAppHandlers(
       // 如果需要重新创建，VoiceHudManager 会在 ensureVisible 时自动处理
     },
     onBeforeQuit: () => {
+      setHotkeyDisabledGlobally(true)
+      armQuitWatchdog()
       statusBarTray.destroy()
       // 通过 VoiceHudManager 销毁 HUD（唯一入口）
       voiceHudManager.dispose()

@@ -10,9 +10,27 @@ interface RegisterAppLifecycleOptions {
   onBeforeQuit: () => void
 }
 
+// 请求单实例锁，防止应用多开
+const gotTheLock = app.requestSingleInstanceLock()
+
+if (!gotTheLock) {
+  console.log('[app] Another instance is already running, quitting...')
+  app.quit()
+  process.exit(0)
+}
+
 export function registerAppLifecycle(
   options: RegisterAppLifecycleOptions,
 ): void {
+  // 当尝试启动第二个实例时，激活第一个实例
+  app.on('second-instance', () => {
+    console.log('[app] Second instance detected, focusing existing window...')
+    if (process.platform === 'darwin') {
+      app.dock?.show()
+    }
+    options.onActivate()
+  })
+
   app.whenReady().then(async () => {
     electronApp.setAppUserModelId('com.electron')
 
