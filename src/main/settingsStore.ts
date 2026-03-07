@@ -1,7 +1,7 @@
 import type { AiProviderUserConfig, ProviderKey } from '~shared/ai'
 import type { VadConfig } from '~shared/voice'
-import Store from 'electron-store'
 import { app } from 'electron'
+import Store from 'electron-store'
 import { DEFAULT_VAD_CONFIG } from '~shared/voice'
 
 // Alias for backward compatibility - VadSettings is the same as VadConfig

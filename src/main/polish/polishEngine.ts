@@ -68,7 +68,7 @@ export class PolishEngine {
     const registry = (aiRegistry as Record<string, { npm?: string }>)[providerId]
     const npmPackage
       = registry?.npm
-      ?? (this.isCustomProvider(providerId) ? '@ai-sdk/openai-compatible' : undefined)
+        ?? (this.isCustomProvider(providerId) ? '@ai-sdk/openai-compatible' : undefined)
 
     if (!npmPackage) {
       throw new Error(`Unknown provider: ${providerId}`)

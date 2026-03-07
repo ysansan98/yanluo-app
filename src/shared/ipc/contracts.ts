@@ -1,5 +1,5 @@
-import { z } from 'zod'
 import type { ProviderKey } from '../ai'
+import { z } from 'zod'
 
 // Electron renderer/preload contexts can disallow string code generation.
 // Force zod v4 to skip JIT compilation (`new Function`) for schema parsing.
@@ -18,7 +18,7 @@ export const builtInProviderKeySchema = z.enum([
 
 const customProviderKeySchema = z
   .string()
-  .regex(/^custom-[a-zA-Z0-9][a-zA-Z0-9-_]*$/)
+  .regex(/^custom-[a-zA-Z0-9][\w-]*$/)
 
 export const providerKeySchema = z.union([
   builtInProviderKeySchema,
