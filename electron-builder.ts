@@ -64,6 +64,10 @@ const config: Configuration = {
       to: 'python',
       filter: [
         '**/*',
+        // 排除 Python 缓存文件（避免 macOS 代码签名问题）
+        '!lib/python3.12/**/__pycache__/**',
+        '!lib/python3.12/**/*.pyc',
+        '!lib/python3.12/**/*.pyo',
         // 排除不必要的文件以减小体积
         '!lib/python3.12/test/**',
         '!lib/python3.12/idlelib/**',
@@ -115,7 +119,7 @@ const config: Configuration = {
   // macOS 配置
   mac: {
     category: 'public.app-category.productivity',
-    target: ['dmg', 'zip'],
+    target: ['dmg'],
     entitlementsInherit: 'build/entitlements.mac.plist',
     extendInfo: {
       CFBundleName: '言落',
@@ -126,10 +130,16 @@ const config: Configuration = {
       NSDownloadsFolderUsageDescription: 'Application requests access to the user\'s Downloads folder.',
     },
     notarize: false,
+    identity: null, // 无证书
+    hardenedRuntime: false, // 不需要 hardened runtime
+
+    // 打包时不强制签名验证
+    gatekeeperAssess: false,
   },
 
   dmg: {
     artifactName: '${name}-${version}.${ext}',
+    sign: false, // DMG 不签名
   },
 
   // Linux 配置

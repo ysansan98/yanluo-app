@@ -50,7 +50,6 @@
     "better-sqlite3": "^12.6.2",
     "electron-store": "^11.0.2",
     "electron-updater": "^6.3.9",
-    "eventsource-parser": "^3.0.6",
     "koffi": "^2.11.0",
     "zod": "^4.3.6"
   },
@@ -70,7 +69,7 @@
     "@vitejs/plugin-vue": "^6.0.2",
     "code-inspector-plugin": "^1.4.2",
     "electron": "^40.0.0",
-    "electron-builder": "26.4.0",
+    "electron-builder": "^26.8.1",
     "electron-vite": "^5.0.0",
     "eslint": "^10.0.0",
     "eslint-plugin-vue": "^10.6.2",
