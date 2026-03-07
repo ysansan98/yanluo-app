@@ -1,23 +1,28 @@
 import type { RegisterIpcHandlersOptions } from './types'
-import { clipboard, ipcMain } from 'electron'
+import { app, clipboard, ipcMain } from 'electron'
 import {
   clipboardWriteTextRequestSchema,
   clipboardWriteTextResponseSchema,
+  logsExportRequestSchema,
+  logsExportResponseSchema,
   okResponseSchema,
   onboardingSkipStepRequestSchema,
   onboardingStatusResponseSchema,
   permissionKindSchema,
   permissionStatusSchema,
+  rendererLogRequestSchema,
   shortcutGetResponseSchema,
   shortcutSetRequestSchema,
   shortcutSetResponseSchema,
 } from '~shared/ipc'
+import { createLogger, exportRecentLogs } from '../logging'
 import { parsePayload } from './utils'
 
 export function registerSystemIpcHandlers(
   options: RegisterIpcHandlersOptions,
 ): void {
   const { onOnboardingComplete, permissionChecker, sessionOrchestrator, settingsStore } = options
+  const log = createLogger('ipc:renderer')
 
   ipcMain.handle('onboarding:getStatus', async () =>
     onboardingStatusResponseSchema.parse({
@@ -117,5 +122,29 @@ export function registerSystemIpcHandlers(
     }
     await sessionOrchestrator.initHotkey?.()
     return okResponseSchema.parse({ ok: true as const })
+  })
+
+  ipcMain.handle('log:renderer', async (event, payload: unknown) => {
+    const data = parsePayload('log:renderer', payload, rendererLogRequestSchema)
+    log[data.level](data.message, {
+      rendererScope: data.scope,
+      webContentsId: event.sender.id,
+      senderUrl: event.sender.getURL(),
+      ...data.extra,
+    })
+    return okResponseSchema.parse({ ok: true as const })
+  })
+
+  ipcMain.handle('logs:exportRecent', async (_event, payload: unknown) => {
+    const request = parsePayload('logs:exportRecent', payload, logsExportRequestSchema)
+    const result = exportRecentLogs(app, {
+      minutes: request.minutes ?? 30,
+    })
+    log.info('exported recent logs', {
+      exportPath: result.exportPath,
+      lineCount: result.lineCount,
+      minutes: result.minutes,
+    })
+    return logsExportResponseSchema.parse(result)
   })
 }

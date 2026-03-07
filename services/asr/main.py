@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import json
+import logging
 import os
 import re
 import threading
@@ -13,6 +14,13 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 app = FastAPI()
+
+LOG_LEVEL = os.getenv('ASR_LOG_LEVEL', 'INFO').upper()
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format='%(asctime)s %(levelname)s [%(name)s] %(message)s',
+)
+logger = logging.getLogger('asr-service')
 
 MODEL = None
 MODEL_LOAD_ERROR = None
@@ -585,7 +593,7 @@ async def stream_asr(websocket: WebSocket):
                 should_run, stats = _analyze_audio_for_vad(snapshot)
                 if not should_run:
                     if STREAM_VAD_DEBUG:
-                        print(
+                        logger.debug(
                             f'[asr-stream-vad] skip partial session={session_id} '
                             f'duration_ms={stats["duration_ms"]} rms={stats["rms"]} '
                             f'active_ratio={stats["active_ratio"]} reason={stats["reason"]}'
@@ -601,7 +609,9 @@ async def stream_asr(websocket: WebSocket):
                     )
                 except Exception as exc:
                     if STREAM_VAD_DEBUG:
-                        print(f'[asr-stream] skip partial due to error session={session_id}: {exc}')
+                        logger.warning(
+                            f'[asr-stream] skip partial due to error session={session_id}: {exc}'
+                        )
                     session.transcribing = False
                     continue
                 finally:
@@ -642,7 +652,7 @@ async def stream_asr(websocket: WebSocket):
                 should_run, stats = _analyze_audio_for_vad(snapshot)
                 if not should_run:
                     if STREAM_VAD_DEBUG:
-                        print(
+                        logger.debug(
                             f'[asr-stream-vad] skip final session={session_id} '
                             f'duration_ms={stats["duration_ms"]} rms={stats["rms"]} '
                             f'active_ratio={stats["active_ratio"]} reason={stats["reason"]}'
@@ -660,7 +670,7 @@ async def stream_asr(websocket: WebSocket):
                     continue
 
                 if STREAM_VAD_DEBUG:
-                    print(
+                    logger.debug(
                         f'[asr-stream-vad] final run session={session_id} '
                         f'duration_ms={stats["duration_ms"]} rms={stats["rms"]} '
                         f'active_ratio={stats["active_ratio"]}'
@@ -675,7 +685,9 @@ async def stream_asr(websocket: WebSocket):
                     )
                 except Exception as exc:
                     if STREAM_VAD_DEBUG:
-                        print(f'[asr-stream] fallback empty final due to error session={session_id}: {exc}')
+                        logger.warning(
+                            f'[asr-stream] fallback empty final due to error session={session_id}: {exc}'
+                        )
                     await websocket.send_json(
                         {
                             'type': 'final',

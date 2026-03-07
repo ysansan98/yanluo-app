@@ -3,6 +3,7 @@ import type { AudioCapture, AudioChunk } from './types'
 import { Buffer } from 'node:buffer'
 import { ipcMain } from 'electron'
 import { AUDIO_IPC } from '~shared/voice'
+import { createLogger } from '../logging'
 
 interface RendererAudioCaptureOptions {
   getTargetWebContents: () => WebContents | null
@@ -33,6 +34,7 @@ interface AudioErrorPayload {
 
 export class RendererAudioCapture implements AudioCapture {
   private readonly getTargetWebContents: () => WebContents | null
+  private readonly fallbackLogger = createLogger('voice-audio-capture')
   private readonly log: (
     message: string,
     extra?: Record<string, unknown>,
@@ -48,7 +50,7 @@ export class RendererAudioCapture implements AudioCapture {
     this.log
       = options.log
         ?? ((message, extra) =>
-          console.info(`[audio-capture] ${message}`, extra ?? {}))
+          this.fallbackLogger.info(message, extra))
   }
 
   async start(): Promise<void> {

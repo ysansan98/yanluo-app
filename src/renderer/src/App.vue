@@ -14,7 +14,9 @@ import PolishCommandPanel from './components/PolishCommandPanel.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import { useAsrPage } from './composables/useAsrPage'
 import { formatDuration } from './utils'
+import { createRendererLogger } from './utils/logger'
 
+const log = createRendererLogger('app-page')
 const globalShortcut = ref('Ctrl + Z')
 const isCapturingShortcut = ref(false)
 
@@ -41,7 +43,9 @@ function clearHistory(): void {
       historyEntries.value = []
     })
     .catch((error) => {
-      console.error('failed to clear history', error)
+      log.error('failed to clear history', {
+        error: error instanceof Error ? error.message : String(error),
+      })
     })
 }
 
@@ -139,7 +143,9 @@ onMounted(async () => {
       historyEntries.value = entries
     })
     .catch((error) => {
-      console.error('failed to load history entries', error)
+      log.error('failed to load history entries', {
+        error: error instanceof Error ? error.message : String(error),
+      })
     })
 
   // 监听引导页面显示事件

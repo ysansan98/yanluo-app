@@ -13,6 +13,7 @@ import { join } from 'node:path'
 import process from 'node:process'
 import { app } from 'electron'
 import { createHotkeyManager } from '../keyboard'
+import { createLogger } from '../logging'
 import { RendererAudioCapture } from './audioCapture'
 import {
   isHotkeyDisabledGlobally,
@@ -54,6 +55,11 @@ interface VoiceRuntime {
 export function createVoiceRuntime(
   options: CreateVoiceRuntimeOptions,
 ): VoiceRuntime {
+  const voiceLog = createLogger('voice-runtime')
+  const hotkeyLog = voiceLog.child('hotkey')
+  const audioLog = voiceLog.child('audio')
+  const asrLog = voiceLog.child('asr')
+  const sessionLog = voiceLog.child('session')
   // 从设置中读取快捷键配置
   const savedShortcut = options.settingsStore.getShortcut()
 
@@ -65,7 +71,7 @@ export function createVoiceRuntime(
     resourcesPath,
     shortcut: savedShortcut ?? undefined,
     log: (message, extra) => {
-      console.info(`[voice-hotkey] ${message}`, extra ?? {})
+      hotkeyLog.info(message, extra)
     },
     // 在事件源头检查是否应该处理（用于 onboarding 设置快捷键时临时禁用）
     shouldProcess: () => {
@@ -75,13 +81,13 @@ export function createVoiceRuntime(
   const audioCapture = new RendererAudioCapture({
     getTargetWebContents: options.getTargetWebContents,
     log: (message, extra) => {
-      console.info(`[voice-audio] ${message}`, extra ?? {})
+      audioLog.info(message, extra)
     },
   })
   const asrClient = new WsStreamingAsrClient({
     wsUrl: options.asrBaseUrl.replace('http://', 'ws://').concat('/asr/stream'),
     log: (message, extra) => {
-      console.info(`[voice-asr] ${message}`, extra ?? {})
+      asrLog.info(message, extra)
     },
   })
   const permissionChecker = new MacPermissionChecker()
@@ -105,7 +111,7 @@ export function createVoiceRuntime(
     onUiHide: options.onUiHide,
     onUiToast: options.onUiToast,
     log: (message, extra) => {
-      console.info(`[voice-session] ${message}`, extra ?? {})
+      sessionLog.info(message, extra)
     },
   })
 

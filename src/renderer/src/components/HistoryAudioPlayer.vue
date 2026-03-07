@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { createRendererLogger } from '../utils/logger'
 import Icon from './Icon.vue'
 
 interface Props {
@@ -7,6 +8,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const log = createRendererLogger('history-audio-player')
 
 const audioRef = ref<HTMLAudioElement | null>(null)
 const progressContainerRef = ref<HTMLDivElement | null>(null)
@@ -148,7 +150,7 @@ async function loadAudio(): Promise<void> {
     return
   const res = await window.api.history.readAudio({ path })
   if (!res.ok) {
-    console.warn('readAudio failed', res.message, path)
+    log.warn('readAudio failed', { message: res.message, path })
     return
   }
 

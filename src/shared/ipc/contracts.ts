@@ -156,6 +156,27 @@ export const clipboardWriteTextResponseSchema = z.union([
   }),
 ])
 
+export const logLevelSchema = z.enum(['debug', 'info', 'warn', 'error'])
+
+export const rendererLogRequestSchema = z.object({
+  level: logLevelSchema,
+  scope: z.string().trim().min(1).max(80),
+  message: z.string().trim().min(1).max(2000),
+  extra: z.record(z.string(), z.unknown()).optional(),
+})
+
+export const logsExportRequestSchema = z.object({
+  minutes: z.number().int().min(1).max(24 * 60).optional(),
+})
+
+export const logsExportResponseSchema = z.object({
+  ok: z.literal(true),
+  exportPath: z.string(),
+  exportedFiles: z.array(z.string()),
+  lineCount: z.number().int().nonnegative(),
+  minutes: z.number().int().min(1).max(24 * 60),
+})
+
 export const okResponseSchema = z.object({
   ok: z.literal(true),
 })
@@ -316,6 +337,10 @@ export type AsrDownloadLogEvent = z.infer<typeof asrDownloadLogEventSchema>
 export type ShortcutSetRequest = z.infer<typeof shortcutSetRequestSchema>
 export type ShortcutSetResponse = z.infer<typeof shortcutSetResponseSchema>
 export type ShortcutGetResponse = z.infer<typeof shortcutGetResponseSchema>
+export type LogLevel = z.infer<typeof logLevelSchema>
+export type RendererLogRequest = z.infer<typeof rendererLogRequestSchema>
+export type LogsExportRequest = z.infer<typeof logsExportRequestSchema>
+export type LogsExportResponse = z.infer<typeof logsExportResponseSchema>
 
 export type AiRegistryResponse = z.infer<typeof aiRegistryResponseSchema>
 export type AiGetConfigResponse = z.infer<typeof aiGetConfigResponseSchema>

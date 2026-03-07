@@ -2,6 +2,7 @@
 import type { HistoryEntry } from '../types/ui'
 import { ref } from 'vue'
 import { formatTime, sourceLabel } from '../utils'
+import { createRendererLogger } from '../utils/logger'
 import HistoryAudioPlayer from './HistoryAudioPlayer.vue'
 import Icon from './Icon.vue'
 
@@ -14,6 +15,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   toggleExpand: [id: string]
 }>()
+const log = createRendererLogger('history-item')
 
 const copied = ref(false)
 
@@ -41,14 +43,23 @@ async function handleCopy(event: MouseEvent) {
       setTimeout(() => {
         copied.value = false
       }, 2000)
-      console.log('[HistoryItem] Copied:', props.entry.text.slice(0, 50) + (props.entry.text.length > 50 ? '...' : ''))
+      log.info('copied history text', {
+        entryId: props.entry.id,
+        textPreview: props.entry.text.slice(0, 50) + (props.entry.text.length > 50 ? '...' : ''),
+      })
     }
     else {
-      console.error('[HistoryItem] Copy failed:', result.error)
+      log.error('copy history text failed', {
+        entryId: props.entry.id,
+        error: result.error,
+      })
     }
   }
   catch (err) {
-    console.error('[HistoryItem] Copy error:', err)
+    log.error('copy history text error', {
+      entryId: props.entry.id,
+      error: err instanceof Error ? err.message : String(err),
+    })
   }
 }
 </script>

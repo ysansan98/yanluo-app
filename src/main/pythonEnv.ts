@@ -2,6 +2,9 @@ import { existsSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
 import process from 'node:process'
 import { app } from 'electron'
+import { createLogger } from './logging'
+
+const log = createLogger('python-env')
 
 /**
  * 获取 ASR 服务目录
@@ -16,20 +19,20 @@ export function getAsrServiceDir(): string {
   const unpackedPath = appPath.replace(/\.asar$/, '.asar.unpacked')
   const unpackedDir = join(unpackedPath, 'services', 'asr')
   if (existsSync(unpackedDir)) {
-    console.log('[pythonEnv] Using unpacked ASR service dir:', unpackedDir)
+    log.info('using unpacked ASR service dir', { path: unpackedDir })
     return unpackedDir
   }
 
   // 备用：尝试直接的 appPath（开发模式）
   const appPathDir = join(appPath, 'services', 'asr')
   if (existsSync(appPathDir)) {
-    console.log('[pythonEnv] Using appPath ASR service dir:', appPathDir)
+    log.info('using appPath ASR service dir', { path: appPathDir })
     return appPathDir
   }
 
   // 开发模式回退
   const devDir = join(process.cwd(), 'services', 'asr')
-  console.log('[pythonEnv] Using dev ASR service dir:', devDir)
+  log.info('using dev ASR service dir', { path: devDir })
   return devDir
 }
 
@@ -96,7 +99,7 @@ export function resolvePythonCmd(): string {
 
   for (const candidate of embeddedCandidates) {
     if (existsSync(candidate)) {
-      console.log('[pythonEnv] Using embedded Python:', candidate)
+      log.info('using embedded python', { path: candidate })
       return candidate
     }
   }

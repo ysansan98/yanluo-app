@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import type { AiProviderInfo, AiProviderUserConfig } from '../../../shared/ai/types'
 import { computed, onMounted, ref } from 'vue'
+import { createRendererLogger } from '../utils/logger'
 import AppActionButton from './AppActionButton.vue'
 import Icon from './Icon.vue'
+
+const log = createRendererLogger('ai-provider-panel')
 
 // State
 const registry = ref<Record<string, AiProviderInfo> | null>(null)
@@ -59,7 +62,9 @@ async function loadData() {
     userConfig.value = configData
   }
   catch (error) {
-    console.error('Failed to load AI provider data:', error)
+    log.error('failed to load AI provider data', {
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
   finally {
     isLoading.value = false
@@ -150,7 +155,10 @@ async function saveProviderConfig(providerId: string) {
     expandedProvider.value = null
   }
   catch (error) {
-    console.error('Failed to save provider config:', error)
+    log.error('failed to save provider config', {
+      providerId,
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
 }
 
@@ -161,7 +169,10 @@ async function removeProviderConfig(providerId: string) {
     expandedProvider.value = null
   }
   catch (error) {
-    console.error('Failed to remove provider config:', error)
+    log.error('failed to remove provider config', {
+      providerId,
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
 }
 
@@ -171,7 +182,11 @@ async function setActiveProvider(providerId: string, modelId: string) {
     await loadData()
   }
   catch (error) {
-    console.error('Failed to set active provider:', error)
+    log.error('failed to set active provider', {
+      providerId,
+      modelId,
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
 }
 
@@ -237,7 +252,10 @@ async function saveCustomProvider() {
     await loadData()
   }
   catch (error) {
-    console.error('Failed to save custom provider:', error)
+    log.error('failed to save custom provider', {
+      providerId,
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
 }
 </script>

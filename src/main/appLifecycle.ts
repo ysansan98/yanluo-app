@@ -2,6 +2,7 @@ import type { BrowserWindow } from 'electron'
 import process from 'node:process'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { app } from 'electron'
+import { createLogger } from './logging'
 
 interface RegisterAppLifecycleOptions {
   onReady: () => void | Promise<void>
@@ -11,10 +12,13 @@ interface RegisterAppLifecycleOptions {
 }
 
 // 请求单实例锁，防止应用多开
-const gotTheLock = app.requestSingleInstanceLock()
+const gotTheLock = process.env.NODE_ENV === 'test'
+  ? true
+  : app.requestSingleInstanceLock()
+const log = createLogger('app-lifecycle')
 
 if (!gotTheLock) {
-  console.log('[app] Another instance is already running, quitting...')
+  log.info('another instance is already running, quitting')
   app.quit()
   process.exit(0)
 }
@@ -24,7 +28,7 @@ export function registerAppLifecycle(
 ): void {
   // 当尝试启动第二个实例时，激活第一个实例
   app.on('second-instance', () => {
-    console.log('[app] Second instance detected, focusing existing window...')
+    log.info('second instance detected, focusing existing window')
     if (process.platform === 'darwin') {
       app.dock?.show()
     }

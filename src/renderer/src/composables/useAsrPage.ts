@@ -1,6 +1,9 @@
 import type { Ref } from 'vue'
 import type { VadConfig } from '~shared/voice'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { createRendererLogger } from '../utils/logger'
+
+const log = createRendererLogger('asr-page')
 
 interface UseAsrPageOptions {
   resultCardRef: Ref<HTMLElement | null>
@@ -72,7 +75,9 @@ export function useAsrPage(options: UseAsrPageOptions) {
       }
     }
     catch (err) {
-      console.warn('[VAD] Failed to load config', err)
+      log.warn('failed to load VAD config', {
+        error: err instanceof Error ? err.message : String(err),
+      })
     }
   }
 
@@ -109,6 +114,10 @@ export function useAsrPage(options: UseAsrPageOptions) {
 
     voiceUnsubscribers.push(
       window.api.voice.onShow((payload) => {
+        log.info('voice onShow', {
+          sessionId: payload.sessionId,
+          status: payload.status,
+        })
         livePartialText.value = ''
         liveFinalText.value = ''
         liveElapsedMs.value = 0
@@ -119,6 +128,11 @@ export function useAsrPage(options: UseAsrPageOptions) {
     )
     voiceUnsubscribers.push(
       window.api.voice.onUpdate((payload) => {
+        log.debug('voice onUpdate', {
+          sessionId: payload.sessionId,
+          status: payload.status,
+          partialLength: payload.partialText.length,
+        })
         if (payload.status === 'recording' && !liveIsRecording.value) {
           livePartialText.value = ''
           liveFinalText.value = ''
@@ -132,6 +146,11 @@ export function useAsrPage(options: UseAsrPageOptions) {
     )
     voiceUnsubscribers.push(
       window.api.voice.onFinal((payload) => {
+        log.info('voice onFinal', {
+          sessionId: payload.sessionId,
+          mode: payload.mode,
+          finalLength: payload.finalText.length,
+        })
         liveIsRecording.value = false
         liveStatus.value
           = payload.mode === 'pasted'

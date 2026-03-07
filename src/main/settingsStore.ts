@@ -3,11 +3,13 @@ import type { VadConfig } from '~shared/voice'
 import { app } from 'electron'
 import Store from 'electron-store'
 import { DEFAULT_VAD_CONFIG } from '~shared/voice'
+import { createLogger } from './logging'
 
 // Alias for backward compatibility - VadSettings is the same as VadConfig
 export type VadSettings = VadConfig
 
 const DEFAULT_VAD: VadSettings = { ...DEFAULT_VAD_CONFIG }
+const log = createLogger('settings-store')
 
 // Re-export for convenience
 export type { AiProviderUserConfig, ProviderKey } from '~shared/ai'
@@ -574,7 +576,7 @@ export class SettingsStore {
   private migrateFromV1(v1: Record<string, unknown>): Partial<AppSettings> {
     // Simple migration: old array-based providers are discarded
     // Users need to reconfigure in the new format
-    console.log('[SettingsStore] Migrating from v1 to v2')
+    log.info('migrating settings from v1 to v2')
     return {
       version: 2,
       onboarding: (v1.onboarding as OnboardingConfig) || DEFAULT_SETTINGS.onboarding,

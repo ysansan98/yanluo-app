@@ -13,6 +13,7 @@ import type {
   VoiceUiUpdatePayload,
 } from '~shared/voice'
 import { VOICE_IPC } from '~shared/voice'
+import { createLogger } from '../logging'
 import { isHotkeyDisabledGlobally } from '../voice/hotkeyState'
 import { VoiceHudWindowController } from '../windows/voiceHudWindow'
 
@@ -48,6 +49,7 @@ interface LogContext {
  * 禁止直接创建或操作 VoiceHudWindowController！
  */
 export class VoiceHudManager {
+  private readonly log = createLogger('voice-hud-manager')
   // 私有窗口控制器，外部不可访问
   private readonly windowController: VoiceHudWindowController
 
@@ -67,7 +69,7 @@ export class VoiceHudManager {
    * 在应用启动时调用
    */
   init(): void {
-    console.log('[HUD] init() - lazy mode (create on first show)')
+    this.log.info('init lazy mode (create on first show)')
   }
 
   /**
@@ -75,7 +77,7 @@ export class VoiceHudManager {
    * 在应用退出时调用
    */
   dispose(): void {
-    console.log('[HUD] dispose()')
+    this.log.info('dispose')
     this.windowController.dispose()
   }
 
@@ -84,7 +86,7 @@ export class VoiceHudManager {
    * 屏幕配置变化时调用
    */
   updateBounds(): void {
-    console.log('[HUD] updateBounds()')
+    this.log.debug('updateBounds')
     this.windowController.updateBounds()
   }
 
@@ -92,11 +94,11 @@ export class VoiceHudManager {
    * 记录操作日志
    */
   private recordLog(context: LogContext): void {
-    // 简化日志输出
-    console.log(`[HUD] ${context.action}`, {
+    this.log.info(context.action, {
       source: context.source,
       status: context.details?.status ?? this.currentStatus,
       sessionId: this.currentSessionId?.slice(-6),
+      ...context.details,
     })
   }
 
@@ -106,7 +108,7 @@ export class VoiceHudManager {
    */
   private canShow(): boolean {
     if (isHotkeyDisabledGlobally()) {
-      console.log('[HUD] BLOCKED: hotkey disabled')
+      this.log.debug('blocked by global hotkey disabled flag')
       return false
     }
     return true
@@ -285,7 +287,7 @@ export class VoiceHudManager {
    * 隐藏 HUD
    */
   hide(delayMs: number = 300, reason: string = 'manual'): void {
-    console.log(`[HUD] hide() reason=${reason} delay=${delayMs}ms`)
+    this.log.info('hide', { reason, delayMs })
 
     this.windowController.scheduleHide(delayMs)
     this.broadcastToHud(VOICE_IPC.UI_HIDE)

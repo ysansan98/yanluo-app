@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
+import { createRendererLogger } from '../../utils/logger'
 import Icon from '../Icon.vue'
 
 const capturing = ref(false)
@@ -10,6 +11,7 @@ const isLoading = ref(true)
 const pendingShortcut = ref<string | null>(null)
 // 捕获区域的 DOM 引用
 const captureAreaRef = ref<HTMLElement | null>(null)
+const log = createRendererLogger('onboarding-step-shortcut')
 
 onMounted(async () => {
   currentShortcut.value = await window.api.shortcut.get()
@@ -42,7 +44,7 @@ async function savePendingShortcut() {
   if (pendingShortcut.value) {
     const shortcut = pendingShortcut.value
     currentShortcut.value = shortcut
-    console.log('[StepShortcut] Saving pending shortcut:', shortcut)
+    log.info('saving pending shortcut', { shortcut })
     await window.api.shortcut.set(shortcut)
     pendingShortcut.value = null
   }
@@ -110,13 +112,13 @@ async function handleKeyUp(event: KeyboardEvent) {
   }
 
   const mappedKey = keyMapping[releasedKey]
-  console.log('[StepShortcut] mappedKey:', mappedKey)
+  log.debug('mapped key on keyup', { releasedKey, mappedKey })
 
   // 从 pressedKeys 中移除被松开的键
   if (mappedKey) {
     const before = [...pressedKeys.value]
     pressedKeys.value = pressedKeys.value.filter(k => k !== mappedKey)
-    console.log('[StepShortcut] Removed modifier. Before:', before, 'After:', [...pressedKeys.value])
+    log.debug('removed modifier key', { before, after: [...pressedKeys.value] })
   }
   else {
     // 普通键被松开（非修饰键）
@@ -132,7 +134,7 @@ async function handleKeyUp(event: KeyboardEvent) {
     }
     const normalizedKey = keyMap[releasedKey] || releasedKey.toUpperCase()
     pressedKeys.value = pressedKeys.value.filter(k => k !== normalizedKey)
-    console.log('[StepShortcut] Removed normal key:', normalizedKey)
+    log.debug('removed normal key', { normalizedKey })
   }
 
   // 当所有键都松开时，保存快捷键

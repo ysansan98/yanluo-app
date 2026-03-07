@@ -1,6 +1,7 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import { spawn } from 'node:child_process'
 import process from 'node:process'
+import { createLogger } from './logging'
 import { getModelDir, getModelId } from './modelManager'
 import {
   buildPythonEnv,
@@ -9,6 +10,19 @@ import {
 } from './pythonEnv'
 
 const DEFAULT_PORT = 8790
+const log = createLogger('asr-service')
+
+function extractTraceIdFromLine(message: string): string | null {
+  const directMatch = message.match(/(?:sessionId|session_id|session)=([A-Za-z0-9-]+)/)
+  if (directMatch?.[1]) {
+    return directMatch[1]
+  }
+  const quotedMatch = message.match(/['"]sessionId['"]\s*:\s*['"]([A-Za-z0-9-]+)['"]/)
+  if (quotedMatch?.[1]) {
+    return quotedMatch[1]
+  }
+  return null
+}
 
 export interface AsrHealth {
   status: string
@@ -57,15 +71,26 @@ export class AsrService {
         stdio: 'pipe',
       },
     )
+    log.info('spawned ASR service process', {
+      pid: this.proc.pid,
+      port: this.port,
+      modelName,
+      modelDir,
+    })
 
     this.proc.stdout.on('data', (chunk) => {
-      console.warn('[asr-service]', chunk.toString().trim())
+      const message = chunk.toString().trim()
+      const traceId = extractTraceIdFromLine(message)
+      log.info('stdout', { message, traceId })
     })
     this.proc.stderr.on('data', (chunk) => {
-      console.error('[asr-service]', chunk.toString().trim())
+      const message = chunk.toString().trim()
+      const traceId = extractTraceIdFromLine(message)
+      log.warn('stderr', { message, traceId })
     })
 
-    this.proc.on('exit', () => {
+    this.proc.on('exit', (code, signal) => {
+      log.info('ASR service process exited', { code, signal })
       if (this.forceKillTimer) {
         clearTimeout(this.forceKillTimer)
         this.forceKillTimer = null
@@ -83,8 +108,11 @@ export class AsrService {
 
     try {
       proc.kill('SIGTERM')
+      log.info('sent SIGTERM to ASR service process')
     }
-    catch {}
+    catch (err) {
+      log.warn('failed to send SIGTERM to ASR service process', { err })
+    }
 
     if (this.forceKillTimer) {
       clearTimeout(this.forceKillTimer)
@@ -96,8 +124,11 @@ export class AsrService {
         return
       try {
         proc.kill('SIGKILL')
+        log.warn('sent SIGKILL to ASR service process')
       }
-      catch {}
+      catch (err) {
+        log.warn('failed to send SIGKILL to ASR service process', { err })
+      }
     }, 800)
     this.forceKillTimer.unref?.()
   }

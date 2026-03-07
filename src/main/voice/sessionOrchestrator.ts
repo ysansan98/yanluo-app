@@ -16,6 +16,7 @@ import { Buffer } from 'node:buffer'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { app } from 'electron'
+import { createLogger } from '../logging'
 import { modelExists } from '../modelManager'
 import { isHotkeyDisabledGlobally } from './hotkeyState'
 import { VOICE_TIMEOUT } from './types'
@@ -69,6 +70,22 @@ function createSessionId(): string {
   return `voice-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
+function ensureSessionLogExtra(
+  activeSessionId: string | null,
+  extra?: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  if (!activeSessionId) {
+    return extra
+  }
+  if (extra?.sessionId || extra?.session_id || extra?.traceId) {
+    return extra
+  }
+  return {
+    ...(extra ?? {}),
+    sessionId: activeSessionId,
+  }
+}
+
 export class DefaultSessionOrchestrator implements SessionOrchestrator {
   private readonly log: (
     message: string,
@@ -90,12 +107,14 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
   private pendingCarryText = ''
   private pendingCarryAt: number | null = null
   private continueWindowMs: number = VOICE_TIMEOUT.CONTINUE_WINDOW_MS
+  private readonly fallbackLogger = createLogger('voice-session')
 
   constructor(private readonly deps: SessionOrchestratorDeps) {
-    this.log
-      = deps.log
-        ?? ((message, extra) =>
-          console.info(`[voice-session] ${message}`, extra ?? {}))
+    const baseLogger = deps.log ?? ((message, extra) => this.fallbackLogger.info(message, extra))
+    this.log = (message, extra) => {
+      const activeSessionId = this.session?.sessionId ?? this.continuingSessionId
+      baseLogger(message, ensureSessionLogExtra(activeSessionId, extra))
+    }
   }
 
   /**

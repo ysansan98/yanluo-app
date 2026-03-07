@@ -10,6 +10,8 @@ import type {
   HistoryListRequest,
   HistoryListResponse,
   HistoryReadAudioRequest,
+  LogLevel,
+  LogsExportResponse,
   PolishAddCommandRequest,
   PolishUpdateSettingsRequest,
 } from '~shared/ipc'
@@ -36,6 +38,8 @@ import {
   historyListResponseSchema,
   historyReadAudioRequestSchema,
   historyReadAudioResponseSchema,
+  logsExportRequestSchema,
+  logsExportResponseSchema,
   okResponseSchema,
   onboardingSkipStepRequestSchema,
   onboardingStatusResponseSchema,
@@ -49,6 +53,7 @@ import {
   polishSetEnabledRequestSchema,
   polishUpdateSettingsRequestSchema,
   providerKeySchema,
+  rendererLogRequestSchema,
   shortcutGetResponseSchema,
   shortcutSetRequestSchema,
   shortcutSetResponseSchema,
@@ -56,6 +61,49 @@ import {
 import { createVoiceBridge } from './voiceBridge'
 
 // Custom APIs for renderer
+async function sendRendererLog(
+  level: LogLevel,
+  scope: string,
+  message: string,
+  extra?: unknown,
+): Promise<void> {
+  const normalizedExtra = normalizeLogExtra(extra)
+  await ipcRenderer.invoke(
+    'log:renderer',
+    rendererLogRequestSchema.parse({
+      level,
+      scope,
+      message,
+      extra: normalizedExtra,
+    }),
+  )
+}
+
+function normalizeLogExtra(extra: unknown): Record<string, unknown> | undefined {
+  const baseMeta: Record<string, unknown> = {
+    processType: 'renderer',
+    page: {
+      href: window.location.href,
+      hash: window.location.hash,
+      pathname: window.location.pathname,
+    },
+  }
+
+  if (extra === undefined) {
+    return baseMeta
+  }
+  if (extra && typeof extra === 'object' && !Array.isArray(extra)) {
+    return {
+      ...baseMeta,
+      ...(extra as Record<string, unknown>),
+    }
+  }
+  return {
+    ...baseMeta,
+    value: extra,
+  }
+}
+
 const api = {
   asr: {
     health: async (): Promise<AsrHealthResponse> =>
@@ -157,7 +205,7 @@ const api = {
         ),
       ),
     disableGlobal: async () => {
-      console.log('[preload] Requesting to disable hotkeys globally')
+      await sendRendererLog('debug', 'preload-shortcut', 'request disable global hotkey')
       return okResponseSchema.parse(
         await ipcRenderer.invoke('shortcut:disableGlobal'),
       )
@@ -174,6 +222,15 @@ const api = {
         await ipcRenderer.invoke(
           'clipboard:writeText',
           clipboardWriteTextRequestSchema.parse(text),
+        ),
+      ),
+  },
+  diagnostics: {
+    exportRecentLogs: async (minutes: number = 30): Promise<LogsExportResponse> =>
+      logsExportResponseSchema.parse(
+        await ipcRenderer.invoke(
+          'logs:exportRecent',
+          logsExportRequestSchema.parse({ minutes }),
         ),
       ),
   },
@@ -284,6 +341,16 @@ const api = {
       return () => ipcRenderer.removeListener('app:shortcutRequired', listener)
     },
   },
+  log: {
+    debug: (scope: string, message: string, extra?: unknown) =>
+      sendRendererLog('debug', scope, message, extra),
+    info: (scope: string, message: string, extra?: unknown) =>
+      sendRendererLog('info', scope, message, extra),
+    warn: (scope: string, message: string, extra?: unknown) =>
+      sendRendererLog('warn', scope, message, extra),
+    error: (scope: string, message: string, extra?: unknown) =>
+      sendRendererLog('error', scope, message, extra),
+  },
   ...(process.env.NODE_ENV === 'test'
     ? {
         test: {
@@ -309,7 +376,9 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('api', api)
   }
   catch (error) {
-    console.error(error)
+    void sendRendererLog('error', 'preload-bootstrap', 'failed to expose preload APIs', {
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
 }
 else {

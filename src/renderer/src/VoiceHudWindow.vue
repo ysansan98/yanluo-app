@@ -1,10 +1,31 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onErrorCaptured, onMounted, ref } from 'vue'
 import VoiceHud from './components/VoiceHud.vue'
+import { createRendererLogger } from './utils/logger'
+
+const log = createRendererLogger('voice-hud-window')
+
+function handleWindowError(event: ErrorEvent): void {
+  log.error('window error', {
+    message: event.message,
+    filename: event.filename,
+    lineno: event.lineno,
+    colno: event.colno,
+  })
+}
+
+function handleWindowUnhandledRejection(event: PromiseRejectionEvent): void {
+  log.error('window unhandled rejection', {
+    reason: event.reason instanceof Error ? event.reason.message : String(event.reason),
+  })
+}
 
 // 错误捕获
 onErrorCaptured((err, _instance, info) => {
-  console.error('[VoiceHudWindow] Error captured:', err, info)
+  log.error('component error captured', {
+    info,
+    error: err instanceof Error ? err.message : String(err),
+  })
   return false
 })
 
@@ -35,17 +56,13 @@ function scheduleHide(delayMs: number): void {
 }
 
 onMounted(() => {
-  console.log('[VoiceHudWindow] Mounted')
+  log.info('mounted')
   // 全局错误监听
-  window.addEventListener('error', (e) => {
-    console.error('[VoiceHudWindow] Global error:', e.message)
-  })
-  window.addEventListener('unhandledrejection', (e) => {
-    console.error('[VoiceHudWindow] Unhandled rejection:', e.reason)
-  })
+  window.addEventListener('error', handleWindowError)
+  window.addEventListener('unhandledrejection', handleWindowUnhandledRejection)
   unsubscribers.push(
     window.api.voice.onShow((payload) => {
-      console.log('[VoiceHudWindow] onShow received:', payload)
+      log.debug('onShow received', payload)
       clearHideTimer()
       visible.value = true
       status.value = payload.status
@@ -59,7 +76,7 @@ onMounted(() => {
 
   unsubscribers.push(
     window.api.voice.onUpdate((payload) => {
-      console.log('[VoiceHudWindow] onUpdate received:', payload)
+      log.debug('onUpdate received', payload)
       clearHideTimer()
       visible.value = true
       status.value = payload.status
@@ -74,7 +91,7 @@ onMounted(() => {
 
   unsubscribers.push(
     window.api.voice.onFinal((payload) => {
-      console.log('[VoiceHudWindow] onFinal received:', payload)
+      log.debug('onFinal received', payload)
       clearHideTimer()
       visible.value = true
       status.value = 'success'
@@ -89,7 +106,7 @@ onMounted(() => {
 
   unsubscribers.push(
     window.api.voice.onToast((payload) => {
-      console.log('[VoiceHudWindow] onToast received:', payload)
+      log.debug('onToast received', payload)
       clearHideTimer()
       visible.value = true
       status.value = payload.type === 'error' ? 'error' : 'success'
@@ -102,7 +119,7 @@ onMounted(() => {
 
   unsubscribers.push(
     window.api.voice.onHide(() => {
-      console.log('[VoiceHudWindow] onHide received')
+      log.debug('onHide received')
       scheduleHide(200)
     }),
   )
@@ -113,8 +130,8 @@ onBeforeUnmount(() => {
   for (const dispose of unsubscribers) {
     dispose()
   }
-  window.removeEventListener('error', () => {})
-  window.removeEventListener('unhandledrejection', () => {})
+  window.removeEventListener('error', handleWindowError)
+  window.removeEventListener('unhandledrejection', handleWindowUnhandledRejection)
 })
 </script>
 

@@ -7,6 +7,7 @@ import type {
   VoiceError,
   VoiceErrorCode,
 } from './types'
+import { createLogger } from '../logging'
 
 interface StreamingAsrClientOptions {
   wsUrl: string
@@ -33,6 +34,7 @@ export class WsStreamingAsrClient implements StreamingAsrClient {
   private acceptingAudio = false
 
   private readonly wsUrl: string
+  private readonly fallbackLogger = createLogger('voice-asr')
   private readonly log: (
     message: string,
     extra?: Record<string, unknown>,
@@ -42,7 +44,7 @@ export class WsStreamingAsrClient implements StreamingAsrClient {
     this.wsUrl = options.wsUrl
     this.log
       = options.log
-        ?? ((message, extra) => console.info(`[voice-asr] ${message}`, extra ?? {}))
+        ?? ((message, extra) => this.fallbackLogger.info(message, extra))
   }
 
   async connect(): Promise<void> {

@@ -16,6 +16,7 @@ import type {
   HistoryListResponse,
   HistoryReadAudioRequest,
   HistoryReadAudioResponse,
+  LogsExportResponse,
   PolishAddCommandRequest,
   PolishCommandsResponse,
   PolishConfigResponse,
@@ -88,6 +89,17 @@ interface ClipboardApi {
   writeText: (text: string) => Promise<{ ok: true } | { ok: false, error: string }>
 }
 
+interface LogApi {
+  debug: (scope: string, message: string, extra?: unknown) => Promise<void>
+  info: (scope: string, message: string, extra?: unknown) => Promise<void>
+  warn: (scope: string, message: string, extra?: unknown) => Promise<void>
+  error: (scope: string, message: string, extra?: unknown) => Promise<void>
+}
+
+interface DiagnosticsApi {
+  exportRecentLogs: (minutes?: number) => Promise<LogsExportResponse>
+}
+
 // AI Provider Types
 interface AiProviderInfo {
   id: string
@@ -154,6 +166,8 @@ interface AppApi {
   permission: PermissionApi
   shortcut: ShortcutApi
   clipboard: ClipboardApi
+  diagnostics: DiagnosticsApi
+  log: LogApi
   app: AppEventApi
   test?: {
     triggerShortcutHub: () => Promise<{ ok: true }>

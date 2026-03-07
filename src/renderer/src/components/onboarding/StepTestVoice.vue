@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { createRendererLogger } from '../../utils/logger'
 
 const shortcut = ref('快捷键')
 const testStatus = ref<'idle' | 'recording' | 'success'>('idle')
 const recognizedText = ref('')
 const isLoading = ref(true)
 const inputRef = ref<HTMLInputElement | null>(null)
+const log = createRendererLogger('onboarding-step-test-voice')
 
 let unsubscribeShow: (() => void) | null = null
 let unsubscribeFinal: (() => void) | null = null
@@ -23,7 +25,7 @@ onMounted(async () => {
   })
 
   unsubscribeShow = window.api.voice.onShow((payload) => {
-    console.log('onShow')
+    log.debug('onShow')
     if (payload.status === 'recording') {
       testStatus.value = 'recording'
       recognizedText.value = ''
@@ -31,7 +33,7 @@ onMounted(async () => {
   })
 
   unsubscribeFinal = window.api.voice.onFinal((payload) => {
-    console.log('onFinal')
+    log.debug('onFinal')
     testStatus.value = 'success'
     recognizedText.value = payload.finalText
   })

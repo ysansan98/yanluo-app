@@ -3,10 +3,12 @@ import { join } from 'node:path'
 import process from 'node:process'
 import { is } from '@electron-toolkit/utils'
 import { BrowserWindow, screen } from 'electron'
+import { createLogger } from '../logging'
 
 const VOICE_HUD_WIDTH = 360
 const VOICE_HUD_HEIGHT = 98
 const VOICE_HUD_BOTTOM_OFFSET = 88
+const log = createLogger('voice-hud-window')
 
 function getVoiceHudBounds() {
   const workArea = screen.getPrimaryDisplay().workArea
@@ -43,11 +45,11 @@ export class VoiceHudWindowController {
    * 创建 HUD 窗口
    */
   create(): BrowserWindow {
-    console.log('[HUD] create() called')
+    log.info('create called')
 
     // 如果已有窗口，先销毁
     if (this.voiceHudWindow && !this.voiceHudWindow.isDestroyed()) {
-      console.log('[HUD] Destroying existing window...')
+      log.info('destroying existing window before recreate')
       this.voiceHudWindow.destroy()
     }
     this.isRendererReady = false
@@ -55,7 +57,7 @@ export class VoiceHudWindowController {
     this.pendingMessages = []
 
     const bounds = getVoiceHudBounds()
-    console.log('[HUD] Creating window at:', bounds)
+    log.debug('creating window', { bounds })
 
     this.voiceHudWindow = new BrowserWindow({
       ...bounds,
@@ -78,7 +80,7 @@ export class VoiceHudWindowController {
       },
     })
 
-    console.log('[HUD] Window created, id:', this.voiceHudWindow.webContents.id)
+    log.info('window created', { webContentsId: this.voiceHudWindow.webContents.id })
 
     this.voiceHudWindow.setAlwaysOnTop(true, 'screen-saver')
     this.voiceHudWindow.setVisibleOnAllWorkspaces(true, {
@@ -88,7 +90,7 @@ export class VoiceHudWindowController {
 
     // 确保窗口初始隐藏
     if (this.voiceHudWindow.isVisible()) {
-      console.log('[HUD] Window was visible, hiding it...')
+      log.warn('window unexpectedly visible at create, hiding')
       this.voiceHudWindow.hide()
     }
 
@@ -124,7 +126,7 @@ export class VoiceHudWindowController {
     })
 
     this.voiceHudWindow.on('closed', () => {
-      console.log('[HUD] Window closed')
+      log.info('window closed')
       this.clearHideTimer()
       this.isRendererReady = false
       this.shouldShowWhenReady = false
@@ -134,7 +136,7 @@ export class VoiceHudWindowController {
 
     // 检测渲染进程崩溃
     this.voiceHudWindow.webContents.on('render-process-gone', (_event, details) => {
-      console.log('[HUD] Render process gone:', details.reason)
+      log.error('render process gone', { reason: details.reason })
       this.clearHideTimer()
       this.isRendererReady = false
       this.shouldShowWhenReady = false
@@ -149,16 +151,15 @@ export class VoiceHudWindowController {
     if (!window.isVisible()) {
       const bounds = window.getBounds()
       const workArea = screen.getPrimaryDisplay().workArea
-      console.log('[HUD] Screen workArea:', workArea)
-      console.log('[HUD] Showing window at:', bounds)
+      log.debug('show window', { bounds, workArea })
       window.showInactive()
       // 强制设置层级
       window.setAlwaysOnTop(true, 'screen-saver')
       window.moveTop()
-      console.log('[HUD] Window shown, isVisible:', window.isVisible())
+      log.debug('window show called', { isVisible: window.isVisible() })
       return
     }
-    console.log('[HUD] Window already visible')
+    log.debug('window already visible')
   }
 
   private flushPendingMessages(): void {
@@ -175,7 +176,7 @@ export class VoiceHudWindowController {
         window.webContents.send(message.channel, message.payload)
       }
       catch (err) {
-        console.error('[HUD] Failed to flush message to HUD:', err)
+        log.error('failed to flush pending message', { err })
       }
     }
   }
@@ -215,19 +216,22 @@ export class VoiceHudWindowController {
    * 确保窗口可见
    */
   ensureVisible(): void {
-    console.log('[HUD] ensureVisible called')
+    log.debug('ensureVisible called')
     const existingWindow = this.getWindow()
-    console.log('[HUD] window exists:', !!existingWindow, 'isVisible:', existingWindow?.isVisible())
+    log.debug('ensureVisible window state', {
+      exists: !!existingWindow,
+      isVisible: existingWindow?.isVisible(),
+    })
     let window = existingWindow
     // 如果窗口不存在、被销毁或 webContents 已销毁，重新创建
     if (!window) {
-      console.log('[HUD] Creating new window...')
+      log.info('window missing, creating new one')
       window = this.create()
     }
     this.clearHideTimer()
     if (!this.isRendererReady) {
       this.shouldShowWhenReady = true
-      console.log('[HUD] Renderer not ready, show deferred')
+      log.debug('renderer not ready, show deferred')
       return
     }
     this.showWindow(window)
@@ -238,14 +242,14 @@ export class VoiceHudWindowController {
    */
   scheduleHide(delayMs: number): void {
     const debugDelayMs = is.dev ? Math.max(delayMs, 3000) : delayMs
-    console.log(`[HUD] scheduleHide: ${debugDelayMs}ms`)
+    log.debug('schedule hide', { delayMs: debugDelayMs })
     this.clearHideTimer()
     this.hideTimer = setTimeout(() => {
       try {
         const nextWindow = this.getWindow()
         if (!nextWindow || nextWindow.isDestroyed())
           return
-        console.log('[HUD] Hiding window')
+        log.debug('hiding window')
         this.shouldShowWhenReady = false
         nextWindow.hide()
       }
@@ -272,7 +276,7 @@ export class VoiceHudWindowController {
       window.webContents.send(channel, payload)
     }
     catch (err) {
-      console.error('[HUD] Failed to send to HUD:', err)
+      log.error('failed to send message to HUD', { err, channel })
     }
   }
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { MIC_DEVICE_STORAGE_KEY } from '../constants/audio'
+import { createRendererLogger } from '../utils/logger'
 import AppActionButton from './AppActionButton.vue'
 import Icon from './Icon.vue'
 
@@ -40,6 +41,7 @@ const emit = defineEmits<{
   'update:vadMinDurationMsInput': [value: string]
   'applyVadConfig': []
 }>()
+const log = createRendererLogger('settings-panel')
 
 // 模型管理状态
 interface DownloadProgress {
@@ -63,6 +65,10 @@ const accessibilityPermissionStatus = ref<PermissionStatus>('NOT_DETERMINED')
 const isCheckingPermissions = ref(false)
 const isRequestingPermission = ref<PermissionKind | null>(null)
 const permissionError = ref('')
+const logExportMinutesInput = ref('30')
+const isExportingLogs = ref(false)
+const logExportStatus = ref('')
+const logExportPath = ref('')
 
 let unsubscribeProgress: (() => void) | null = null
 
@@ -104,7 +110,9 @@ async function refreshPermissionStatus(): Promise<void> {
     accessibilityPermissionStatus.value = accessibility
   }
   catch (error) {
-    console.error('Failed to check permissions:', error)
+    log.error('failed to check permissions', {
+      error: error instanceof Error ? error.message : String(error),
+    })
     permissionError.value = '权限状态获取失败，请稍后重试'
   }
   finally {
@@ -126,7 +134,10 @@ async function requestPermission(kind: PermissionKind): Promise<void> {
     }
   }
   catch (error) {
-    console.error(`Failed to request ${kind} permission:`, error)
+    log.error('failed to request permission', {
+      kind,
+      error: error instanceof Error ? error.message : String(error),
+    })
     permissionError.value = '权限请求失败，请前往系统设置手动开启'
   }
   finally {
@@ -179,7 +190,9 @@ async function refreshMicrophoneDevices(options?: {
     }
   }
   catch (error) {
-    console.error('Failed to enumerate microphone devices:', error)
+    log.error('failed to enumerate microphone devices', {
+      error: error instanceof Error ? error.message : String(error),
+    })
     microphoneDevices.value = []
     if (error instanceof DOMException && error.name === 'NotAllowedError') {
       micPermissionStatus.value = 'DENIED'
@@ -250,7 +263,40 @@ async function startDownload() {
     }
   }
   catch (error) {
-    console.error('Download failed:', error)
+    log.error('download model failed', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+}
+
+async function exportRecentLogs(): Promise<void> {
+  const minutes = Number.parseInt(logExportMinutesInput.value, 10)
+  if (Number.isNaN(minutes) || minutes <= 0) {
+    logExportStatus.value = '导出分钟数必须是正整数'
+    return
+  }
+
+  isExportingLogs.value = true
+  logExportStatus.value = ''
+  logExportPath.value = ''
+  try {
+    const result = await window.api.diagnostics.exportRecentLogs(minutes)
+    logExportStatus.value = `已导出 ${result.lineCount} 行日志`
+    logExportPath.value = result.exportPath
+    log.info('diagnostic logs exported', {
+      exportPath: result.exportPath,
+      lineCount: result.lineCount,
+      minutes: result.minutes,
+    })
+  }
+  catch (error) {
+    log.error('failed to export diagnostic logs', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    logExportStatus.value = '导出失败，请稍后重试'
+  }
+  finally {
+    isExportingLogs.value = false
   }
 }
 
@@ -566,6 +612,42 @@ onUnmounted(() => {
         </div>
       </article>
     </section>
+
+    <article
+      class="rounded-3xl border border-yl-line-350/50 bg-white/88 p-5 shadow-yl-card"
+    >
+      <div class="text-base font-bold text-yl-ink-650">
+        诊断日志导出
+      </div>
+      <div class="mt-1 text-xs text-yl-muted-390">
+        导出最近 N 分钟日志与运行环境信息，用于问题排查。
+      </div>
+      <div class="mt-3 flex flex-wrap items-center gap-2">
+        <label class="text-sm text-yl-ink-450">最近分钟数</label>
+        <input
+          v-model="logExportMinutesInput"
+          class="w-24 rounded-lg border border-yl-line-300 bg-white px-2.5 py-1.5 text-sm"
+          inputmode="numeric"
+        >
+        <AppActionButton
+          variant="outline"
+          size="sm"
+          :loading="isExportingLogs"
+          @click="exportRecentLogs"
+        >
+          导出日志
+        </AppActionButton>
+      </div>
+      <div v-if="logExportStatus" class="mt-2 text-xs text-yl-ink-500">
+        {{ logExportStatus }}
+      </div>
+      <div
+        v-if="logExportPath"
+        class="mt-1 break-all text-xs text-yl-muted-390"
+      >
+        {{ logExportPath }}
+      </div>
+    </article>
 
     <section class="grid grid-cols-2 gap-4">
       <article

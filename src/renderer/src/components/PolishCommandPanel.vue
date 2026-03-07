@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import type { PolishCommand } from '../../../shared/ai/types'
 import { computed, onMounted, ref } from 'vue'
+import { createRendererLogger } from '../utils/logger'
 import AppActionButton from './AppActionButton.vue'
 import Icon from './Icon.vue'
 
 const emit = defineEmits<{
   switchMenu: [menu: string]
 }>()
+const log = createRendererLogger('polish-command-panel')
 
 // Icon mapping using Iconify icons
 const iconMap: Record<string, string> = {
@@ -63,7 +65,9 @@ async function loadData() {
     }
   }
   catch (error) {
-    console.error('Failed to load polish data:', error)
+    log.error('failed to load polish data', {
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
   finally {
     isLoading.value = false
@@ -81,11 +85,11 @@ function getIcon(commandId: string): string {
 // Actions
 async function setCommand(commandId: string) {
   if (!aiStatus.value?.hasEnabledProvider) {
-    console.warn('请先配置 AI 服务商')
+    log.warn('no AI provider configured')
     return
   }
   if (!aiStatus.value?.isActiveProviderValid) {
-    console.warn('当前 AI 服务商配置无效，请检查配置')
+    log.warn('active AI provider config invalid')
     return
   }
 
@@ -97,7 +101,10 @@ async function setCommand(commandId: string) {
     }
   }
   catch (error) {
-    console.error('Failed to set command:', error)
+    log.error('failed to set polish command', {
+      commandId,
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
 }
 
@@ -109,11 +116,11 @@ async function toggleEnabled() {
 
   if (newEnabled) {
     if (!aiStatus.value?.hasEnabledProvider) {
-      console.warn('请先配置 AI 服务商')
+      log.warn('no AI provider configured')
       return
     }
     if (!aiStatus.value?.isActiveProviderValid) {
-      console.warn('当前 AI 服务商配置无效，请检查配置')
+      log.warn('active AI provider config invalid')
       return
     }
   }
@@ -124,7 +131,10 @@ async function toggleEnabled() {
     config.value.enabled = newEnabled
   }
   catch (error) {
-    console.error('Failed to toggle enabled:', error)
+    log.error('failed to toggle polish enabled', {
+      enabled: newEnabled,
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
 }
 
@@ -178,7 +188,9 @@ async function saveCommand() {
     showAddModal.value = false
   }
   catch (error) {
-    console.error('Failed to save command:', error)
+    log.error('failed to save polish command', {
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
 }
 
@@ -194,7 +206,10 @@ async function deleteCommand(commandId: string, event: Event) {
     }
   }
   catch (error) {
-    console.error('Failed to delete command:', error)
+    log.error('failed to delete polish command', {
+      commandId,
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
 }
 

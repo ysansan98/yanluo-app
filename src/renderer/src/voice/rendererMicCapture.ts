@@ -1,8 +1,10 @@
 import type { VadConfig } from '~shared/voice'
 import { DEFAULT_VAD_CONFIG, VAD_ENERGY_THRESHOLDS } from '~shared/voice'
 import { MIC_DEVICE_STORAGE_KEY } from '../constants/audio'
+import { createRendererLogger } from '../utils/logger'
 
 const TARGET_SAMPLE_RATE = 16000
+const log = createRendererLogger('renderer-mic-capture')
 
 class RendererMicCaptureManager {
   private stream: MediaStream | null = null
@@ -37,7 +39,7 @@ class RendererMicCaptureManager {
     this.stopVadConfigUpdatedListener = window.api.voice.onVadConfigUpdated?.(
       (config) => {
         this.vadConfig = { ...this.vadConfig, ...config }
-        console.log('[VAD] Config updated', this.vadConfig)
+        log.info('VAD config updated', this.vadConfig)
       },
     )
 
@@ -56,7 +58,9 @@ class RendererMicCaptureManager {
       }
     }
     catch (err) {
-      console.warn('[VAD] Failed to load config', err)
+      log.warn('failed to load VAD config', {
+        error: err instanceof Error ? err.message : String(err),
+      })
     }
   }
 
@@ -257,7 +261,7 @@ class RendererMicCaptureManager {
 
       // Check minimum duration first
       if (durationMs < this.vadConfig.minDurationMs) {
-        console.log('[VAD] Audio too short, canceling', { durationMs })
+        log.info('audio too short, canceling', { durationMs })
         shouldCancel = true
       }
       else {
@@ -266,14 +270,11 @@ class RendererMicCaptureManager {
       }
 
       if (shouldCancel) {
-        console.log(
-          '[VAD] No valid speech detected, requesting silent cancel',
-          { durationMs },
-        )
+        log.info('no valid speech detected, requesting silent cancel', { durationMs })
         window.api.voice.requestSilentCancel?.()
       }
       else {
-        console.log('[VAD] Valid speech detected, proceeding')
+        log.debug('valid speech detected, proceeding')
       }
     }
 

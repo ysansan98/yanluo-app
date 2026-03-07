@@ -9,6 +9,7 @@ import type { VoiceWorkerWindowController } from './windows/voiceWorkerWindow'
 import { spawn } from 'node:child_process'
 import process from 'node:process'
 import { app, screen } from 'electron'
+import { createLogger, initMainLogger } from './logging'
 import { setupMediaPermissionHandlers } from './permissions/mediaPermissions'
 import { registerIpcHandlers } from './registerIpcHandlers'
 import { StatusBarTray } from './statusBarTray'
@@ -57,6 +58,7 @@ export function createMainAppHandlers(
 
   const { initHotkey } = options
   const statusBarTray = new StatusBarTray()
+  const log = createLogger('bootstrap')
   let quitWatchdogArmed = false
 
   const armQuitWatchdog = () => {
@@ -91,6 +93,8 @@ export function createMainAppHandlers(
 
   return {
     onReady: () => {
+      initMainLogger(app)
+      log.info('main process ready')
       setupMediaPermissionHandlers()
 
       registerIpcHandlers({
@@ -105,27 +109,41 @@ export function createMainAppHandlers(
           // 引导完成后初始化热键
           if (initHotkey) {
             void initHotkey().catch((err) => {
-              console.error('Failed to initialize hotkey after onboarding:', err)
+              log.error('failed to initialize hotkey after onboarding', { err })
             })
           }
         },
       })
 
       asrService.start().catch((err) => {
-        console.error('Failed to start ASR service:', err)
+        log.error('failed to start ASR service', { err })
       })
       sessionOrchestrator.setContinueWindowMs?.(
         settingsStore.get().voice.continueWindowMs,
       )
       // 默认不在 init 阶段绑定热键，由后续流程显式初始化
       sessionOrchestrator.init({ delayHotkey: true }).catch((err) => {
-        console.error('Failed to initialize voice session orchestrator:', err)
+        log.error('failed to initialize voice session orchestrator', { err })
       })
       ensureTray()
 
       // 检查是否需要显示引导页
       const onboardingConfig = settingsStore.get().onboarding
-      if (!onboardingConfig.completed) {
+      const isTestEnv = process.env.NODE_ENV === 'test'
+      if (isTestEnv) {
+        const mainWindow = createMainWindow()
+        setMainWindow(mainWindow)
+        mainWindow.once('ready-to-show', () => {
+          if (mainWindow.isMinimized()) {
+            mainWindow.restore()
+          }
+          mainWindow.show()
+          mainWindow.focus()
+          app.focus()
+        })
+        log.info('created main window in test mode')
+      }
+      else if (!onboardingConfig.completed) {
         const mainWindow = createMainWindow()
         setMainWindow(mainWindow)
         mainWindow.once('ready-to-show', () => {
@@ -149,7 +167,7 @@ export function createMainAppHandlers(
         const configuredShortcut = settingsStore.getShortcut()
         if (configuredShortcut && initHotkey) {
           void initHotkey().catch((err) => {
-            console.error('Failed to initialize hotkey:', err)
+            log.error('failed to initialize hotkey', { err })
           })
         }
       }
@@ -167,7 +185,7 @@ export function createMainAppHandlers(
     },
     onActivate: () => {
       ensureTray()
-      if (settingsStore.get().onboarding.completed) {
+      if (process.env.NODE_ENV !== 'test' && settingsStore.get().onboarding.completed) {
         return
       }
       const mainWindow = getMainWindow()
@@ -185,7 +203,7 @@ export function createMainAppHandlers(
       voiceWorkerWindow.dispose()
       asrService.stop()
       sessionOrchestrator.dispose().catch((err) => {
-        console.error('Failed to dispose voice session orchestrator:', err)
+        log.error('failed to dispose voice session orchestrator', { err })
       })
     },
   }
