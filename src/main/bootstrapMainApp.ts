@@ -128,6 +128,14 @@ export function createMainAppHandlers(
       if (!onboardingConfig.completed) {
         const mainWindow = createMainWindow()
         setMainWindow(mainWindow)
+        mainWindow.once('ready-to-show', () => {
+          if (mainWindow.isMinimized()) {
+            mainWindow.restore()
+          }
+          mainWindow.show()
+          mainWindow.focus()
+          app.focus()
+        })
         mainWindow.webContents.once('did-finish-load', () => {
           mainWindow.webContents.send('app:showOnboarding')
         })
