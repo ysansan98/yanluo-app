@@ -1,6 +1,7 @@
 import type { AiProviderUserConfig, ProviderKey } from '~shared/ai'
 import type { VadConfig } from '~shared/voice'
 import Store from 'electron-store'
+import { app } from 'electron'
 import { DEFAULT_VAD_CONFIG } from '~shared/voice'
 
 // Alias for backward compatibility - VadSettings is the same as VadConfig
@@ -187,8 +188,9 @@ export class SettingsStore {
       return this.store
     const StoreCtor
       = (Store as unknown as { default?: typeof Store }).default ?? Store
+    const storeName = app.isPackaged ? 'settings' : 'settings.dev'
     this.store = new StoreCtor<AppSettings>({
-      name: 'settings',
+      name: storeName,
       defaults: DEFAULT_SETTINGS,
       clearInvalidConfig: true,
     })
