@@ -1,10 +1,11 @@
 import { z } from 'zod'
+import type { ProviderKey } from '../ai'
 
 // Electron renderer/preload contexts can disallow string code generation.
 // Force zod v4 to skip JIT compilation (`new Function`) for schema parsing.
 z.config({ jitless: true })
 
-export const providerKeySchema = z.enum([
+export const builtInProviderKeySchema = z.enum([
   'openai',
   'google',
   'anthropic',
@@ -14,6 +15,15 @@ export const providerKeySchema = z.enum([
   'minimax',
   'minimax-coding-plan',
 ])
+
+const customProviderKeySchema = z
+  .string()
+  .regex(/^custom-[a-zA-Z0-9][a-zA-Z0-9-_]*$/)
+
+export const providerKeySchema = z.union([
+  builtInProviderKeySchema,
+  customProviderKeySchema,
+]).transform(value => value as ProviderKey)
 
 export const permissionKindSchema = z.enum(['MICROPHONE', 'ACCESSIBILITY'])
 
@@ -216,7 +226,7 @@ export const aiProviderUserConfigSchema = z.object({
 })
 
 export const aiGetConfigResponseSchema = z.object({
-  providers: z.partialRecord(providerKeySchema, aiProviderUserConfigSchema),
+  providers: z.record(z.string(), aiProviderUserConfigSchema),
   activeProviderId: providerKeySchema.nullable(),
   activeModelId: z.string().nullable(),
 })

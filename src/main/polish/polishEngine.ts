@@ -31,6 +31,10 @@ export interface PolishResult {
 export class PolishEngine {
   private abortController: AbortController | null = null
 
+  private isCustomProvider(providerId: string): boolean {
+    return providerId.startsWith('custom-')
+  }
+
   /**
    * Get the API endpoint for a provider
    * Priority: custom > registry > sdk default
@@ -62,7 +66,9 @@ export class PolishEngine {
     apiKey: string,
   ): Promise<LanguageModel> {
     const registry = (aiRegistry as Record<string, { npm?: string }>)[providerId]
-    const npmPackage = registry?.npm
+    const npmPackage
+      = registry?.npm
+      ?? (this.isCustomProvider(providerId) ? '@ai-sdk/openai-compatible' : undefined)
 
     if (!npmPackage) {
       throw new Error(`Unknown provider: ${providerId}`)

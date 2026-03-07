@@ -1,6 +1,6 @@
 // AI Provider Types - Shared between main and renderer
 
-export type ProviderKey
+export type BuiltInProviderKey
   = | 'openai'
     | 'google'
     | 'anthropic'
@@ -9,6 +9,10 @@ export type ProviderKey
     | 'zai-coding-plan'
     | 'minimax'
     | 'minimax-coding-plan'
+
+export type CustomProviderKey = `custom-${string}`
+
+export type ProviderKey = BuiltInProviderKey | CustomProviderKey
 
 export interface AiProviderUserConfig {
   enabled: boolean
@@ -39,7 +43,7 @@ export interface AiProviderInfo {
 }
 
 export interface AiRegistry {
-  providers: Record<ProviderKey, AiProviderInfo>
+  providers: Record<string, AiProviderInfo>
 }
 
 export interface PolishCommand {
