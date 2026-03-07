@@ -49,6 +49,10 @@ const config: Configuration = {
   // Python 嵌入式环境打包配置
   extraResources: [
     {
+      from: 'resources/trayTemplate.png',
+      to: 'trayTemplate.png',
+    },
+    {
       from: 'resources/lib',
       to: 'lib',
       filter: [
