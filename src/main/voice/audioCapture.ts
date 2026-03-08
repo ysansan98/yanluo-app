@@ -41,7 +41,6 @@ export class RendererAudioCapture implements AudioCapture {
   ) => void
 
   private chunkHandler: ((chunk: AudioChunk) => void) | null = null
-  private silentCancelHandlers: Array<() => void> = []
   private running = false
   private listenersBound = false
 
@@ -84,10 +83,6 @@ export class RendererAudioCapture implements AudioCapture {
     this.chunkHandler = cb
   }
 
-  onSilentCancel(cb: () => void): void {
-    this.silentCancelHandlers.push(cb)
-  }
-
   private bindIpcListeners(): void {
     if (this.listenersBound)
       return
@@ -117,18 +112,12 @@ export class RendererAudioCapture implements AudioCapture {
       })
     })
 
-    ipcMain.on(AUDIO_IPC.VAD_SILENT_CANCEL, () => {
-      this.log('silent cancel requested by VAD')
-      this.silentCancelHandlers.forEach(cb => cb())
-    })
-
     this.listenersBound = true
   }
 }
 
 export class StubAudioCapture implements AudioCapture {
   private chunkHandler: ((chunk: AudioChunk) => void) | null = null
-  private silentCancelHandlers: Array<() => void> = []
 
   async start(): Promise<void> {}
 
@@ -138,15 +127,8 @@ export class StubAudioCapture implements AudioCapture {
     this.chunkHandler = cb
   }
 
-  onSilentCancel(cb: () => void): void {
-    this.silentCancelHandlers.push(cb)
-  }
-
   emitChunk(chunk: AudioChunk): void {
     this.chunkHandler?.(chunk)
   }
 
-  emitSilentCancel(): void {
-    this.silentCancelHandlers.forEach(cb => cb())
-  }
 }

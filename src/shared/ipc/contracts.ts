@@ -61,25 +61,6 @@ export const voiceRecordingStopResponseSchema = z.object({
   ok: z.literal(true),
 })
 
-export const vadConfigSchema = z.object({
-  enabled: z.boolean(),
-  threshold: z.number(),
-  minSpeechMs: z.number().int(),
-  redemptionMs: z.number().int(),
-  minDurationMs: z.number().int(),
-})
-
-export const vadSetConfigRequestSchema = vadConfigSchema.partial()
-
-export const vadSetConfigResponseSchema = z.object({
-  ok: z.literal(true),
-  enabled: z.boolean(),
-  threshold: z.number(),
-  minSpeechMs: z.number().int(),
-  redemptionMs: z.number().int(),
-  minDurationMs: z.number().int(),
-})
-
 export const historyCreateRequestSchema = z.object({
   source: z.literal('live'),
   entryType: z.enum(['asr_only', 'polish']),

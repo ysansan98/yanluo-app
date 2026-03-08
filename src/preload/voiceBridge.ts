@@ -1,5 +1,4 @@
 import type {
-  VadConfig,
   VoiceUiFinalPayload,
   VoiceUiShowPayload,
   VoiceUiToastPayload,
@@ -7,14 +6,11 @@ import type {
 } from '~shared/voice'
 import { ipcRenderer } from 'electron'
 import {
-  vadConfigSchema,
-  vadSetConfigRequestSchema,
-  vadSetConfigResponseSchema,
   voiceGetConfigResponseSchema,
   voiceSetConfigRequestSchema,
   voiceSetConfigResponseSchema,
 } from '~shared/ipc'
-import { AUDIO_IPC, VAD_CONFIG_IPC, VOICE_IPC } from '~shared/voice'
+import { AUDIO_IPC, VOICE_IPC } from '~shared/voice'
 
 export interface VoiceBridgeApi {
   onShow: (cb: (payload: VoiceUiShowPayload) => void) => () => void
@@ -41,18 +37,12 @@ export interface VoiceBridgeApi {
     inputDeviceLabel?: string
   }) => void
   sendAudioError: (payload: { message: string }) => void
-  requestSilentCancel: () => void
   startRecording: () => Promise<{ ok: true }>
   stopRecording: () => Promise<{ ok: true }>
   getConfig: () => Promise<{ continueWindowMs: number }>
   setConfig: (payload: {
     continueWindowMs?: number
   }) => Promise<{ ok: true, continueWindowMs: number }>
-  getVadConfig: () => Promise<VadConfig>
-  setVadConfig: (
-    payload: Partial<VadConfig>,
-  ) => Promise<{ ok: true } & VadConfig>
-  onVadConfigUpdated: (cb: (config: VadConfig) => void) => () => void
 }
 
 function bindEvent<T>(
@@ -89,7 +79,6 @@ export function createVoiceBridge(): VoiceBridgeApi {
     sendAudioChunk: payload => ipcRenderer.send(AUDIO_IPC.CHUNK, payload),
     sendAudioState: payload => ipcRenderer.send(AUDIO_IPC.STATE, payload),
     sendAudioError: payload => ipcRenderer.send(AUDIO_IPC.ERROR, payload),
-    requestSilentCancel: () => ipcRenderer.send(AUDIO_IPC.VAD_SILENT_CANCEL),
     startRecording: () => ipcRenderer.invoke('voice:recording:start'),
     stopRecording: () => ipcRenderer.invoke('voice:recording:stop'),
     getConfig: async () =>
@@ -103,15 +92,5 @@ export function createVoiceBridge(): VoiceBridgeApi {
           voiceSetConfigRequestSchema.parse(payload),
         ),
       ),
-    getVadConfig: async () =>
-      vadConfigSchema.parse(await ipcRenderer.invoke(VAD_CONFIG_IPC.GET)),
-    setVadConfig: async payload =>
-      vadSetConfigResponseSchema.parse(
-        await ipcRenderer.invoke(
-          VAD_CONFIG_IPC.SET,
-          vadSetConfigRequestSchema.parse(payload),
-        ),
-      ),
-    onVadConfigUpdated: cb => bindEvent(VAD_CONFIG_IPC.UPDATED, cb),
   }
 }

@@ -63,7 +63,6 @@ interface ActiveSession {
   carryPrefix: string
   audioChunks: Buffer[]
   pendingAsrChunks: Buffer[]
-  silentCancelRequested: boolean
 }
 
 function createSessionId(): string {
@@ -275,7 +274,6 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
       carryPrefix,
       audioChunks: [],
       pendingAsrChunks: [],
-      silentCancelRequested: false,
       metrics: {
         sessionId,
         startedAt: now,
@@ -369,36 +367,6 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
     }
   }
 
-  private async handleSilentCancel(sessionId: string): Promise<void> {
-    if (!this.session || this.session.sessionId !== sessionId) {
-      return
-    }
-
-    // Check if already silently canceled
-    if (this.session.silentCancelRequested) {
-      this.log('silent cancel already requested', { sessionId })
-      return
-    }
-
-    this.session.silentCancelRequested = true
-    this.log('performing silent cancel', { sessionId })
-
-    // Stop audio capture
-    await this.deps.audioCapture.stop().catch(() => {})
-
-    // Clear continue timer
-    if (this.continueTimer) {
-      clearTimeout(this.continueTimer)
-      this.continueTimer = null
-    }
-    this.continuingSessionId = null
-
-    // Silent cleanup, no error shown
-    await this.cleanupSession('vad-silent', sessionId)
-    this.transition('IDLE')
-    this.deps.onUiHide?.()
-  }
-
   private bindEvents(): void {
     if (this.deps.enableHotkey ?? true) {
       this.deps.hotkeyManager.onPress(() => {
@@ -429,20 +397,6 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
       void this.deps.asrClient.sendAudio(chunk.pcm16le).catch((error) => {
         void this.fail(error, 'send-audio-failed')
       })
-    })
-
-    this.deps.audioCapture.onSilentCancel?.(() => {
-      // Only cancel while actively streaming.
-      // In FINALIZING, canceling here can drop already captured partial/final text
-      // and skip injection.
-      if (this.state !== 'STREAMING') {
-        return
-      }
-      const sessionId = this.session?.sessionId
-      if (sessionId) {
-        this.log('silent cancel requested by VAD', { sessionId })
-        void this.handleSilentCancel(sessionId)
-      }
     })
 
     this.deps.asrClient.onPartial((msg) => {
@@ -573,12 +527,6 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
       return
     }
 
-    // Check if already silently canceled
-    if (this.session.silentCancelRequested) {
-      this.log('session already silently canceled', { sessionId })
-      return
-    }
-
     this.continueTimer = null
     this.continuingSessionId = null
     const session = this.session
@@ -592,14 +540,6 @@ export class DefaultSessionOrchestrator implements SessionOrchestrator {
         || !this.isSessionCurrent(sessionId)
       ) {
         this.log('finalize canceled due to session preemption', { sessionId })
-        return
-      }
-
-      // Check again if silent cancel was requested while waiting
-      if (session.silentCancelRequested) {
-        this.log('session silently canceled while waiting for final', {
-          sessionId,
-        })
         return
       }
 

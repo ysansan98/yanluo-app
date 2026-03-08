@@ -1,6 +1,5 @@
 // Import shared voice types from ~shared
 import type {
-  VadConfig as SharedVadConfig,
   VoiceUiFinalPayload as SharedVoiceUiFinalPayload,
   VoiceUiShowPayload as SharedVoiceUiShowPayload,
   VoiceUiToastPayload as SharedVoiceUiToastPayload,
@@ -8,7 +7,6 @@ import type {
 } from '~shared/voice'
 
 // Re-export for backward compatibility
-export type VadConfig = SharedVadConfig
 export type VoiceUiFinalPayload = SharedVoiceUiFinalPayload
 export type VoiceUiShowPayload = SharedVoiceUiShowPayload
 export type VoiceUiToastPayload = SharedVoiceUiToastPayload
@@ -39,16 +37,10 @@ export interface VoiceApi {
     inputDeviceLabel?: string
   }) => void
   sendAudioError: (payload: { message: string }) => void
-  requestSilentCancel: () => void
   startRecording: () => Promise<{ ok: true }>
   stopRecording: () => Promise<{ ok: true }>
   getConfig: () => Promise<{ continueWindowMs: number }>
   setConfig: (payload: {
     continueWindowMs?: number
   }) => Promise<{ ok: true, continueWindowMs: number }>
-  getVadConfig: () => Promise<VadConfig>
-  setVadConfig: (
-    payload: Partial<VadConfig>,
-  ) => Promise<{ ok: true } & VadConfig>
-  onVadConfigUpdated: (cb: (config: VadConfig) => void) => () => void
 }

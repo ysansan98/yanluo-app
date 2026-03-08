@@ -1,5 +1,9 @@
 import type { BrowserWindow } from 'electron'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { BrowserWindow as BW } from 'electron'
+import { app } from 'electron'
 import { VOICE_IPC } from '~shared/voice'
 import { registerAppLifecycle } from './appLifecycle'
 import { AsrService } from './asrService'
@@ -11,6 +15,11 @@ import { createVoiceRuntime } from './voice'
 import { VoiceHudManager } from './voiceHud/voiceHudManager'
 import { createMainWindow } from './windows/mainWindow'
 import { VoiceWorkerWindowController } from './windows/voiceWorkerWindow'
+
+if (process.env.NODE_ENV === 'test') {
+  const isolatedUserDataDir = mkdtempSync(join(tmpdir(), 'yanluo-e2e-userdata-'))
+  app.setPath('userData', isolatedUserDataDir)
+}
 
 const asrService = new AsrService()
 const historyStore = new HistoryStore()

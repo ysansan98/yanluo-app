@@ -106,13 +106,6 @@ function createBaseOptions(): RegisterIpcHandlersOptions {
         shortcuts: { pushToTalk: 'Ctrl + Z' },
         voice: {
           continueWindowMs: 2000,
-          vad: {
-            enabled: true,
-            threshold: 0.5,
-            minSpeechMs: 150,
-            redemptionMs: 150,
-            minDurationMs: 300,
-          },
         },
       })),
       getAllPolishCommands: vi.fn(() => []),

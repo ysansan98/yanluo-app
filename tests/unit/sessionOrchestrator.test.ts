@@ -77,8 +77,6 @@ class FakeAudioCapture {
       timestampMs: number
     }) => void,
   ): void {}
-
-  onSilentCancel(_cb: () => void): void {}
 }
 
 class FakeHotkeyManager {

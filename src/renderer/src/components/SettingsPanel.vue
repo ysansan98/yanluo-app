@@ -12,11 +12,6 @@ interface Props {
   accessibilityPermissionHint: string
   liveStatus: string
   continueWindowMsInput: string
-  vadEnabled: boolean
-  vadThresholdInput: string
-  vadMinSpeechMsInput: string
-  vadRedemptionMsInput: string
-  vadMinDurationMsInput: string
 }
 
 type PermissionStatus = 'GRANTED' | 'DENIED' | 'NOT_DETERMINED' | 'RESTRICTED'
@@ -34,12 +29,6 @@ const emit = defineEmits<{
   'update:isCapturingShortcut': [value: boolean]
   'update:continueWindowMsInput': [value: string]
   'applyContinueWindowMs': []
-  'update:vadEnabled': [value: boolean]
-  'update:vadThresholdInput': [value: string]
-  'update:vadMinSpeechMsInput': [value: string]
-  'update:vadRedemptionMsInput': [value: string]
-  'update:vadMinDurationMsInput': [value: string]
-  'applyVadConfig': []
 }>()
 const log = createRendererLogger('settings-panel')
 
@@ -731,120 +720,5 @@ onUnmounted(() => {
       </div>
     </article>
 
-    <article
-      class="rounded-3xl border border-yl-line-350/50 bg-white/88 p-5 shadow-yl-card"
-    >
-      <div class="flex items-center justify-between">
-        <div class="text-base font-bold text-yl-ink-650">
-          语音活动检测 (VAD)
-        </div>
-        <label class="flex items-center gap-2 cursor-pointer">
-          <span class="text-sm text-yl-ink-450">启用</span>
-          <input
-            type="checkbox"
-            :checked="props.vadEnabled"
-            class="w-4 h-4 rounded"
-            @change="
-              emit(
-                'update:vadEnabled',
-                ($event.target as HTMLInputElement).checked,
-              )
-            "
-          >
-        </label>
-      </div>
-
-      <div
-        class="mt-4 space-y-3"
-        :class="{ 'opacity-50 pointer-events-none': !props.vadEnabled }"
-      >
-        <div class="flex flex-wrap items-center gap-2">
-          <label class="text-sm text-yl-ink-450 w-32">检测阈值</label>
-          <input
-            :value="props.vadThresholdInput"
-            type="range"
-            min="0.1"
-            max="0.9"
-            step="0.05"
-            class="w-40"
-            @input="
-              emit(
-                'update:vadThresholdInput',
-                ($event.target as HTMLInputElement).value,
-              )
-            "
-          >
-          <span class="text-sm text-yl-ink-450 w-12">{{ props.vadThresholdInput }}</span>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-2">
-          <label class="text-sm text-yl-ink-450 w-32">最小语音时长(ms)</label>
-          <input
-            :value="props.vadMinSpeechMsInput"
-            type="number"
-            min="50"
-            max="2000"
-            step="50"
-            class="w-24 rounded-lg border border-yl-line-300 bg-white px-2 py-1 text-sm"
-            @input="
-              emit(
-                'update:vadMinSpeechMsInput',
-                ($event.target as HTMLInputElement).value,
-              )
-            "
-          >
-        </div>
-
-        <div class="flex flex-wrap items-center gap-2">
-          <label class="text-sm text-yl-ink-450 w-32">恢复时长(ms)</label>
-          <input
-            :value="props.vadRedemptionMsInput"
-            type="number"
-            min="50"
-            max="2000"
-            step="50"
-            class="w-24 rounded-lg border border-yl-line-300 bg-white px-2 py-1 text-sm"
-            @input="
-              emit(
-                'update:vadRedemptionMsInput',
-                ($event.target as HTMLInputElement).value,
-              )
-            "
-          >
-        </div>
-
-        <div class="flex flex-wrap items-center gap-2">
-          <label class="text-sm text-yl-ink-450 w-32">最小时长(ms)</label>
-          <input
-            :value="props.vadMinDurationMsInput"
-            type="number"
-            min="100"
-            max="2000"
-            step="100"
-            class="w-24 rounded-lg border border-yl-line-300 bg-white px-2 py-1 text-sm"
-            @input="
-              emit(
-                'update:vadMinDurationMsInput',
-                ($event.target as HTMLInputElement).value,
-              )
-            "
-          >
-        </div>
-
-        <div class="flex items-center gap-2 pt-2">
-          <AppActionButton
-            variant="outline"
-            size="sm"
-            @click="emit('applyVadConfig')"
-          >
-            应用 VAD 设置
-          </AppActionButton>
-        </div>
-      </div>
-
-      <div class="mt-3 text-xs text-yl-muted-390">
-        VAD 可以自动过滤静音和背景噪音，避免无效识别。
-      </div>
-    </article>
   </section>
 </template>

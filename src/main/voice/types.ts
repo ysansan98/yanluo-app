@@ -134,16 +134,11 @@ export interface HotkeyManager {
   updateShortcut?: (shortcut: string) => void
 }
 
-// Re-export shared VAD types from ~shared
-export type { VadConfig } from '~shared/voice'
-export { DEFAULT_VAD_CONFIG } from '~shared/voice'
-
 export interface AudioCapture {
   // Start/stop microphone and emit PCM chunks.
   start: () => Promise<void>
   stop: () => Promise<void>
   onChunk: (cb: (chunk: AudioChunk) => void) => void
-  onSilentCancel: (cb: () => void) => void
 }
 
 export interface StreamingAsrClient {

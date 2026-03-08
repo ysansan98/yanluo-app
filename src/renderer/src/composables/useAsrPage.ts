@@ -1,5 +1,4 @@
 import type { Ref } from 'vue'
-import type { VadConfig } from '~shared/voice'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { createRendererLogger } from '../utils/logger'
 
@@ -23,13 +22,6 @@ export function useAsrPage(options: UseAsrPageOptions) {
   const liveElapsedMs = ref<number>(0)
   const continueWindowMsInput = ref<string>('2000')
   const voiceUnsubscribers: Array<() => void> = []
-
-  // VAD config
-  const vadEnabled = ref<boolean>(true)
-  const vadThresholdInput = ref<string>('0.5')
-  const vadMinSpeechMsInput = ref<string>('150')
-  const vadRedemptionMsInput = ref<string>('150')
-  const vadMinDurationMsInput = ref<string>('300')
 
   async function startLiveRecording(): Promise<void> {
     liveStatus.value = 'Starting...'
@@ -63,54 +55,9 @@ export function useAsrPage(options: UseAsrPageOptions) {
     liveStatus.value = `Continue window set to ${res.continueWindowMs}ms`
   }
 
-  async function loadVadConfig(): Promise<void> {
-    try {
-      const config = await window.api.voice.getVadConfig?.()
-      if (config) {
-        vadEnabled.value = config.enabled
-        vadThresholdInput.value = String(config.threshold)
-        vadMinSpeechMsInput.value = String(config.minSpeechMs)
-        vadRedemptionMsInput.value = String(config.redemptionMs)
-        vadMinDurationMsInput.value = String(config.minDurationMs)
-      }
-    }
-    catch (err) {
-      log.warn('failed to load VAD config', {
-        error: err instanceof Error ? err.message : String(err),
-      })
-    }
-  }
-
-  async function applyVadConfig(): Promise<void> {
-    try {
-      const payload: Partial<VadConfig> = {
-        enabled: vadEnabled.value,
-        threshold: Number.parseFloat(vadThresholdInput.value),
-        minSpeechMs: Number.parseInt(vadMinSpeechMsInput.value, 10),
-        redemptionMs: Number.parseInt(vadRedemptionMsInput.value, 10),
-        minDurationMs: Number.parseInt(vadMinDurationMsInput.value, 10),
-      }
-      const res = await window.api.voice.setVadConfig?.(payload)
-      if (res) {
-        vadEnabled.value = res.enabled
-        vadThresholdInput.value = String(res.threshold)
-        vadMinSpeechMsInput.value = String(res.minSpeechMs)
-        vadRedemptionMsInput.value = String(res.redemptionMs)
-        vadMinDurationMsInput.value = String(res.minDurationMs)
-        liveStatus.value = 'VAD config applied'
-      }
-    }
-    catch (err) {
-      liveStatus.value = err instanceof Error ? err.message : String(err)
-    }
-  }
-
   onMounted(async () => {
     const voiceConfig = await window.api.voice.getConfig()
     continueWindowMsInput.value = String(voiceConfig.continueWindowMs)
-
-    // Load VAD config
-    await loadVadConfig()
 
     voiceUnsubscribers.push(
       window.api.voice.onShow((payload) => {
@@ -176,19 +123,6 @@ export function useAsrPage(options: UseAsrPageOptions) {
       }),
     )
 
-    // Listen for VAD config updates from other windows
-    const unsubscribeVadUpdate = window.api.voice.onVadConfigUpdated?.(
-      (config) => {
-        vadEnabled.value = config.enabled
-        vadThresholdInput.value = String(config.threshold)
-        vadMinSpeechMsInput.value = String(config.minSpeechMs)
-        vadRedemptionMsInput.value = String(config.redemptionMs)
-        vadMinDurationMsInput.value = String(config.minDurationMs)
-      },
-    )
-    if (unsubscribeVadUpdate) {
-      voiceUnsubscribers.push(unsubscribeVadUpdate)
-    }
   })
 
   onBeforeUnmount(() => {
@@ -206,12 +140,5 @@ export function useAsrPage(options: UseAsrPageOptions) {
     livePartialText,
     liveStatus,
     toggleLiveRecording,
-    // VAD
-    vadEnabled,
-    vadThresholdInput,
-    vadMinSpeechMsInput,
-    vadRedemptionMsInput,
-    vadMinDurationMsInput,
-    applyVadConfig,
   }
 }

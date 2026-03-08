@@ -107,12 +107,6 @@ const {
   applyContinueWindowMs,
   continueWindowMsInput,
   liveStatus,
-  vadEnabled,
-  vadThresholdInput,
-  vadMinSpeechMsInput,
-  vadRedemptionMsInput,
-  vadMinDurationMsInput,
-  applyVadConfig,
 } = useAsrPage({
   resultCardRef,
   onTranscriptCreated: () => {},
@@ -270,21 +264,10 @@ function closeDialog() {
             :accessibility-permission-hint="accessibilityPermissionHint"
             :live-status="liveStatus"
             :continue-window-ms-input="continueWindowMsInput"
-            :vad-enabled="vadEnabled"
-            :vad-threshold-input="vadThresholdInput"
-            :vad-min-speech-ms-input="vadMinSpeechMsInput"
-            :vad-redemption-ms-input="vadRedemptionMsInput"
-            :vad-min-duration-ms-input="vadMinDurationMsInput"
             @update:global-shortcut="globalShortcut = $event"
             @update:is-capturing-shortcut="isCapturingShortcut = $event"
             @update:continue-window-ms-input="continueWindowMsInput = $event"
             @apply-continue-window-ms="applyContinueWindowMs"
-            @update:vad-enabled="vadEnabled = $event"
-            @update:vad-threshold-input="vadThresholdInput = $event"
-            @update:vad-min-speech-ms-input="vadMinSpeechMsInput = $event"
-            @update:vad-redemption-ms-input="vadRedemptionMsInput = $event"
-            @update:vad-min-duration-ms-input="vadMinDurationMsInput = $event"
-            @apply-vad-config="applyVadConfig"
           />
 
           <AboutPanel

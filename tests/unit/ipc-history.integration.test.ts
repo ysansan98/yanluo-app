@@ -98,13 +98,6 @@ function createBaseOptions(): RegisterIpcHandlersOptions {
         shortcuts: { pushToTalk: null },
         voice: {
           continueWindowMs: 2000,
-          vad: {
-            enabled: true,
-            threshold: 0.5,
-            minSpeechMs: 150,
-            redemptionMs: 150,
-            minDurationMs: 300,
-          },
         },
       })),
       completeOnboarding: vi.fn(),
